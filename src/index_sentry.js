@@ -10,11 +10,13 @@ import {
 import { getNetFeeRate } from "./strategy.js";
 
 let symbol = "BTC/USDT:USDT";
+let proportion;
 try {
   const configPath = path.join(process.cwd(), "proportion.json");
   if (fs.existsSync(configPath)) {
     const configStr = fs.readFileSync(configPath, "utf8");
     const config = JSON.parse(configStr);
+    proportion = config;
     if (config.bots?.sentry_15m?.symbol) symbol = config.bots.sentry_15m.symbol;
   }
 } catch (e) {}
@@ -73,6 +75,7 @@ function appendHistory(tradeData) {
 }
 
 async function monitorLoop() {
+  if (!proportion.powerOn) return;
   try {
     let usdtBalance = 0;
     if (isLive) {
