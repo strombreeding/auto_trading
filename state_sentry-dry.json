@@ -1,0 +1,16 @@
+{
+  "currentUSDT": 100,
+  "strategyData": {},
+  "virtualTrade": {
+    "entryTime": 1774687303631,
+    "mode": "TREND",
+    "side": "buy",
+    "entryPrice": 83.57,
+    "amount": 4.18,
+    "tp": 84.33,
+    "sl": 82.07,
+    "usdtBefore": 100,
+    "currentPrice": 83.1,
+    "unrealizedRoe": "-5.62%"
+  }
+}

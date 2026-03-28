@@ -1,0 +1,12 @@
+{
+  "currentUSDT": 39.279909142711816,
+  "strategyData": {
+    "lastSupport1H": 82.3,
+    "supportTouches": [],
+    "supportDipTimestamp": null,
+    "lastResistance1H": 83.06,
+    "resistanceTouches": [],
+    "resistancePumpTimestamp": null
+  },
+  "virtualTrade": null
+}

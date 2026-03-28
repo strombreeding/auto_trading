@@ -1,0 +1,23 @@
+{
+  "currentUSDT": 100,
+  "strategyData": {
+    "lastSupport1H": 82.3,
+    "supportTouches": [],
+    "supportDipTimestamp": null,
+    "lastResistance1H": 83.06,
+    "resistanceTouches": [],
+    "resistancePumpTimestamp": null
+  },
+  "virtualTrade": {
+    "entryTime": 1774686623836,
+    "mode": "BREAKOUT",
+    "side": "buy",
+    "entryPrice": 83.45,
+    "amount": 2.99,
+    "tp": 85.13,
+    "sl": 82.2,
+    "usdtBefore": 100,
+    "currentPrice": 83.5,
+    "unrealizedRoe": "0.60%"
+  }
+}

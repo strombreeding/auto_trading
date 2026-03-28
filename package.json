@@ -1,0 +1,31 @@
+{
+  "name": "be-rich",
+  "version": "1.0.0",
+  "description": "be rich with coin ",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "dev": "nodemon src/index.js",
+    "start": "node src/index.js",
+    "live": "node src/index.js --live",
+    "sentry:start": "node src/index_sentry.js",
+    "sentry:live": "node src/index_sentry.js --live",
+    "hedge:start": "node src/index_hedge.js",
+    "hedge:live": "node src/index_hedge.js --live"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "ccxt": "^4.5.45",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "technicalindicators": "^3.1.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.5.0",
+    "nodemon": "^3.1.14",
+    "ts-node": "^10.9.2",
+    "typescript": "^6.0.2"
+  }
+}
