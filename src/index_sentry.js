@@ -22,8 +22,14 @@ try {
 // 명령줄 인자를 통한 모드 판별: node src/index_sentry.js --live
 const isLive = process.argv.includes("--live");
 
-const stateFilePath = path.join(process.cwd(), isLive ? "state_sentry.json" : "state_sentry-dry.json");
-const historyFilePath = path.join(process.cwd(), isLive ? "history_sentry.json" : "history_sentry-dry.json");
+const stateFilePath = path.join(
+  process.cwd(),
+  isLive ? "state_sentry.json" : "state_sentry-dry.json",
+);
+const historyFilePath = path.join(
+  process.cwd(),
+  isLive ? "history_sentry.json" : "history_sentry-dry.json",
+);
 
 let appState = null;
 
@@ -33,10 +39,18 @@ function loadAppState() {
       appState = JSON.parse(fs.readFileSync(stateFilePath, "utf8"));
       if (!isLive && !appState.currentUSDT) appState.currentUSDT = 100;
     } catch (e) {
-      appState = { currentUSDT: isLive ? 0 : 100, strategyData: {}, virtualTrade: null };
+      appState = {
+        currentUSDT: isLive ? 0 : 100,
+        strategyData: {},
+        virtualTrade: null,
+      };
     }
   } else {
-    appState = { currentUSDT: isLive ? 0 : 100, strategyData: {}, virtualTrade: null };
+    appState = {
+      currentUSDT: isLive ? 0 : 100,
+      strategyData: {},
+      virtualTrade: null,
+    };
     saveAppState();
   }
 }
@@ -69,7 +83,7 @@ async function monitorLoop() {
       usdtBalance = appState.currentUSDT || 100;
     }
 
-    let sentryProportion = 0.30;
+    let sentryProportion = 0.3;
     try {
       const configPath = path.join(process.cwd(), "proportion.json");
       if (fs.existsSync(configPath)) {
@@ -86,7 +100,6 @@ async function monitorLoop() {
     if (isLive) {
       const positions = await okx15m.fetchPositions([symbol]);
       const activePosition = positions.find((p) => Number(p.contracts) > 0);
-
       if (activePosition) {
         const pnlStr =
           activePosition.percentage !== undefined
@@ -94,9 +107,11 @@ async function monitorLoop() {
             : "";
         const currentMark =
           activePosition.markPrice || activePosition.lastPrice || "N/A";
-        const baseCoin = symbol.split('/')[0];
-        console.log(`🔥 [SENTRY LIVE] 진입가: ${activePosition.entryPrice} | 현재가: ${currentMark}${pnlStr} (규모: ${activePosition.contracts} ${baseCoin})`);
-        return; 
+        const baseCoin = symbol.split("/")[0];
+        console.log(
+          `🔥 [SENTRY LIVE] 진입가: ${activePosition.entryPrice} | 현재가: ${currentMark}${pnlStr} (규모: ${activePosition.contracts} ${baseCoin})`,
+        );
+        return;
       }
     }
 
@@ -244,7 +259,7 @@ async function monitorLoop() {
         indicators.currentPrice,
         signal.mode,
         indicators.bbMid,
-        symbol
+        symbol,
       );
 
       const preciseTP = Number(
@@ -257,9 +272,10 @@ async function monitorLoop() {
       const params = {
         takeProfit: { triggerPrice: preciseTP },
         stopLoss: { triggerPrice: preciseSL },
+        marginMode: "isolated",
       };
 
-      const baseCoin = symbol.split('/')[0];
+      const baseCoin = symbol.split("/")[0];
       if (isLive) {
         console.log(
           `🧨 [SENTRY LIVE] 진입 시도: ${side.toUpperCase()} ${amount} ${baseCoin} (TP: ${preciseTP}, SL: ${preciseSL})`,

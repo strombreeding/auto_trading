@@ -285,6 +285,7 @@ async function monitorLoop() {
       const params = {
         takeProfit: { triggerPrice: preciseTP },
         stopLoss: { triggerPrice: preciseSL },
+        marginMode: "isolated",
       };
 
       const baseCoin = symbol.split("/")[0];

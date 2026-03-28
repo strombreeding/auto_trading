@@ -16,7 +16,7 @@
       "name": "Hedge V-Catch (Third Bot)",
       "symbol": "SOL/USDT:USDT",
       "features": "양방향 동시 진입 봇. 한쪽 방향 0.6% 익절 후, 반대쪽은 5분봉 RSI 기반 역추세(V-Catch) 탈출. 수익 반납 및 합산 손실 방어 로직 탑재.",
-      "proportion": 1
+      "proportion": 0.5
     }
   }
 }

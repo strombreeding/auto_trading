@@ -78,7 +78,6 @@ async function monitorLoop() {
     let usdtBalance = 0;
     if (isLive) {
       const balance = await okxHedge.fetchBalance();
-      console.log(balance.total.USDT, "이게 얼마야");
       usdtBalance = Number(balance.total.USDT || 0);
       appState.currentUSDT = usdtBalance;
     } else {
@@ -131,6 +130,7 @@ async function monitorLoop() {
         const sideToClose = exitResult.side; // long or short
         if (isLive) {
           const orderSide = sideToClose === "long" ? "sell" : "buy";
+
           await okxHedge
             .createOrder(
               symbol,
@@ -138,7 +138,7 @@ async function monitorLoop() {
               orderSide,
               appState.hedgeTrade.amount,
               undefined,
-              { posSide: sideToClose },
+              { posSide: sideToClose, marginMode: "isolated" },
             )
             .catch(console.error);
         }
@@ -169,7 +169,7 @@ async function monitorLoop() {
                 "sell",
                 appState.hedgeTrade.amount,
                 undefined,
-                { posSide: "long" },
+                { posSide: "long", marginMode: "isolated" },
               )
               .catch(console.error);
           }
@@ -181,7 +181,7 @@ async function monitorLoop() {
                 "buy",
                 appState.hedgeTrade.amount,
                 undefined,
-                { posSide: "short" },
+                { posSide: "short", marginMode: "isolated" },
               )
               .catch(console.error);
           }
@@ -256,7 +256,7 @@ async function monitorLoop() {
     await okxHedge.loadMarkets();
     let amount = Number(okxHedge.amountToPrecision(symbol, rawAmount));
     const minAmount = okxHedge.markets[symbol]?.limits?.amount?.min || 0.01;
-
+    console.log(minAmount, "최소주분금액");
     if (amount < minAmount) {
       console.log(
         `⚠️ 계산된 진입 수량(${amount})이 OKX 최소 주문 수량(${minAmount})보다 작습니다! 비중이나 잔고를 늘려주세요.`,
@@ -269,13 +269,22 @@ async function monitorLoop() {
       console.log(
         `🧨 [HEDGE LIVE] 롱/숏 양방향 동시 진입 시장가 오픈 시도 (수량: 각각 ${amount} ${baseCoin})...`,
       );
+      const nowSet = await okxHedge.fetchLeverage(symbol, {
+        marginMode: "isolated",
+      });
+      console.log(nowSet);
+      // const bal = await okxHedge.fetchBalance();
+      // console.log(bal.total);
+
       try {
         await Promise.all([
           okxHedge.createOrder(symbol, "market", "buy", amount, undefined, {
             posSide: "long",
+            marginMode: "isolated",
           }),
           okxHedge.createOrder(symbol, "market", "sell", amount, undefined, {
             posSide: "short",
+            marginMode: "isolated",
           }),
         ]);
         console.log("✅ [HEDGE LIVE] 양방향 포지션 동시 오픈 완료!");
@@ -318,7 +327,7 @@ async function startHedgeBot() {
 
   console.log("🔄 Hedge 봇 시장 감시 시작 (15초마다)...");
   monitorLoop();
-  setInterval(monitorLoop, 15000);
+  setInterval(monitorLoop, 5000);
 }
 
 startHedgeBot();

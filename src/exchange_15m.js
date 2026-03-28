@@ -26,13 +26,20 @@ export async function testSentryConnection() {
 export async function setupSentryExchange(symbol) {
   try {
     // 마진 모드를 격리로 설정
-    await okx15m.setMarginMode("isolated", symbol).catch((e) => {});
+    // await okx15m
+    //   .setMarginMode("isolated", symbol, {
+    //     lever:10
+    //   })
+    //   .catch((e) => {
+    //     console.error(e);
+    //   });
     // 무기한 선물 레버리지 10배 설정
-    await okx15m
-      .setLeverage(10, symbol, { marginMode: "isolated" })
-      .catch((e) =>
-        console.log("이미 레버리지가 설정되어 있을 수 있습니다:", e.message),
-      );
+    // await okx15m
+    //   .setLeverage(10, symbol, { marginMode: "isolated" })
+    //   .catch((e) =>
+    //     console.log("이미 레버리지가 설정되어 있을 수 있습니다:", e.message),
+    //   );
+    const zz = await okx15m.fetchLeverage(symbol, { marginMode: "isolated" });
     console.log(
       `✅ [${symbol}] Sentry 15M 리스크 관리: 10배 격리 모드 레버리지 설정 완료!`,
     );

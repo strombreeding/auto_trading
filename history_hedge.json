@@ -1,0 +1,30 @@
+[
+  {
+    "time": "2026. 3. 29. 오전 1:03:44",
+    "mode": "HEDGE_LIVE",
+    "durationMinutes": "4.5",
+    "reason": "🔄 [Phase 2] RSI 반등 회복점(60경계) 도달. 반등세 약화로 롱 손절 마감.",
+    "totalPnlUSDT": 0.0072
+  },
+  {
+    "time": "2026. 3. 29. 오전 1:11:00",
+    "mode": "HEDGE_LIVE",
+    "durationMinutes": "1.0",
+    "reason": "🔄 [Phase 2] RSI 반등 회복점(60경계) 도달. 반등세 약화로 롱 손절 마감.",
+    "totalPnlUSDT": 0.0339
+  },
+  {
+    "time": "2026. 3. 29. 오전 1:32:19",
+    "mode": "HEDGE_LIVE",
+    "durationMinutes": "17.4",
+    "reason": "🔄 [Phase 2] 본절/수익권 회복 달성! 물려있던 숏 구출 성공.",
+    "totalPnlUSDT": 0.0956
+  },
+  {
+    "time": "2026. 3. 29. 오전 1:39:15",
+    "mode": "HEDGE_LIVE",
+    "durationMinutes": "6.8",
+    "reason": "🔄 [Phase 2] 본절/수익권 회복 달성! 물려있던 숏 구출 성공.",
+    "totalPnlUSDT": 0.0954
+  }
+]
