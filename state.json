@@ -4,15 +4,9 @@
     "lastSupport1H": 82.53,
     "supportTouches": [],
     "supportDipTimestamp": null,
-    "lastResistance1H": 83.64,
-    "resistanceTouches": [
-      1774711269942,
-      1774711581122,
-      1774711887522,
-      1774712187671,
-      1774712487806
-    ],
-    "resistancePumpTimestamp": 1774712400000
+    "lastResistance1H": 84.25,
+    "resistanceTouches": [],
+    "resistancePumpTimestamp": null
   },
   "virtualTrade": null
 }

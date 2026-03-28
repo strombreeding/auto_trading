@@ -71,32 +71,22 @@ export function checkHedgeExitLogic(hedgeTrade, indicators, symbol) {
       hedgeTrade.rsiTouched === "oversold" && rsi > 30 && shortNetUSDT > 0;
 
     // ==============================================================================
-    // 🛠️ [추가된 부분] 롱(Long) 방향 트레일링 (끝까지 발라먹기 + 반절 지킴이)
-    // 롱 수익이 한 번이라도 목표치를 돌파했다면 이제부터 즉시 안 팔고 각을 봅니다.
-    if (hedgeTrade.maxLongPnL >= TARGET_PROFIT_USDT) {
-      const MIN_PROFIT_LIMIT = TARGET_PROFIT_USDT * 0.5; // 방어선: 원래 목표수익의 50%
+    // 🛠️ [수정된 부분] 트레일링 스탑(MIN_PROFIT_LIMIT) 완전 삭제. 오직 RSI 극점만 봅니다.
 
-      // 1-1. 갑자기 빔 맞고 하락하면 최소 수익(50%)만 챙기고 탈출!
-      if (longNetUSDT <= MIN_PROFIT_LIMIT) {
+    // 1-1. 롱(Long) 방향 끝물 포착
+    if (hedgeTrade.maxLongPnL >= TARGET_PROFIT_USDT) {
+      // 목표치를 한 번이라도 넘겼다면, 수익이 떨어지든 말든 버팁니다.
+      // 오직 RSI가 70 이상(과매수 꼭대기)을 찍었을 때만 던집니다!
+      if (rsi >= 70) {
         return {
           action: "CLOSE_WINNER",
           side: "long",
-          profitUSDT: longNetUSDT,
-          reason: `🛡️ [Phase 1] 롱 목표 달성 후 하락. 50% 수익 보존 컷. 숏 구출 모드 돌입!`,
+          profitUSDT: longNetUSDT, // 이때 수익이 음수만 아니면 무조건 가장 좋은 타점입니다.
+          reason: `🌋 [Phase 1] 롱 목표 달성 후 홀딩 -> RSI 과매수(${rsi.toFixed(1)}) 극점 도달! 꼭대기 익절, 숏 구출 시작!`,
         };
       }
-      // 1-2. RSI가 진짜 꼭대기(70 이상)를 찍으면 전량 익절!
-      else if (rsi >= 70) {
-        return {
-          action: "CLOSE_WINNER",
-          side: "long",
-          profitUSDT: longNetUSDT,
-          reason: `🌋 [Phase 1] 롱 추세 꼭대기! RSI 과매수(${rsi.toFixed(1)}) 익절. 숏 구출 모드 돌입!`,
-        };
-      }
-    }
-    // 목표치는 못 미쳤지만 V-catch 로직(미니 반등)에 걸렸을 때
-    else if (hitRsiTpLong) {
+    } else if (hitRsiTpLong) {
+      // 목표치는 못 미쳤지만 V-catch 로직(미니 반등)에 걸렸을 때
       return {
         action: "CLOSE_WINNER",
         side: "long",
@@ -105,27 +95,20 @@ export function checkHedgeExitLogic(hedgeTrade, indicators, symbol) {
       };
     }
 
-    // 🛠️ [추가된 부분] 숏(Short) 방향 트레일링 (끝까지 발라먹기 + 반절 지킴이)
-    // 숏 수익이 한 번이라도 목표치를 돌파했다면 즉시 안 팔고 각을 봅니다.
+    // 1-2. 숏(Short) 방향 끝물 포착
     if (hedgeTrade.maxShortPnL >= TARGET_PROFIT_USDT) {
-      const MIN_PROFIT_LIMIT = TARGET_PROFIT_USDT * 0.5;
-
-      if (shortNetUSDT <= MIN_PROFIT_LIMIT) {
+      // 목표치를 한 번이라도 넘겼다면, 수익이 떨어지든 말든 버팁니다.
+      // 오직 RSI가 30 이하(과매도 바닥)를 찍었을 때만 던집니다!
+      if (rsi <= 30) {
         return {
           action: "CLOSE_WINNER",
           side: "short",
           profitUSDT: shortNetUSDT,
-          reason: `🛡️ [Phase 1] 숏 목표 달성 후 상승. 50% 수익 보존 컷. 롱 구출 모드 돌입!`,
-        };
-      } else if (rsi <= 30) {
-        return {
-          action: "CLOSE_WINNER",
-          side: "short",
-          profitUSDT: shortNetUSDT,
-          reason: `🧊 [Phase 1] 숏 추세 바닥! RSI 과매도(${rsi.toFixed(1)}) 익절. 롱 구출 모드 돌입!`,
+          reason: `🧊 [Phase 1] 숏 목표 달성 후 홀딩 -> RSI 과매도(${rsi.toFixed(1)}) 극점 도달! 바닥 익절, 롱 구출 시작!`,
         };
       }
     } else if (hitRsiTpShort) {
+      // 목표치는 못 미쳤지만 V-catch 로직(미니 반등)에 걸렸을 때
       return {
         action: "CLOSE_WINNER",
         side: "short",
