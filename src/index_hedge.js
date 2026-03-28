@@ -76,7 +76,7 @@ function appendHistory(tradeData) {
 }
 
 async function monitorLoop() {
-  if (!proportion.powerOn) return;
+  if (!proportion.powerOn) return console.log("파워가 꺼져있습니다. - hedge");
   try {
     let usdtBalance = 0;
     if (isLive) {
