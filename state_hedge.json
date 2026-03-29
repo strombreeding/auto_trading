@@ -1,21 +1,21 @@
 {
-  "currentUSDT": 29.534383784264612,
+  "currentUSDT": 29.46781403426462,
   "hedgeTrade": {
-    "entryTime": 1774717006919,
+    "entryTime": 1774754137238,
     "proportion": 0.5,
-    "amount": 0.86,
-    "usdtBefore": 28.9617336,
+    "amount": 0.89,
+    "usdtBefore": 29.550392684264626,
     "sideOpened": {
       "long": true,
-      "short": false
+      "short": true
     },
-    "longEntry": 83.51,
-    "shortEntry": 83.51,
-    "rsiTouched": "oversold",
-    "winnerClosed": "short",
-    "winnerPnL": 1.369081675249074,
-    "maxLongPnL": 0.033880210035322246,
-    "maxShortPnL": 1.5424844629391732
+    "longEntry": 82.77,
+    "shortEntry": 82.77,
+    "rsiTouched": null,
+    "winnerClosed": null,
+    "winnerPnL": 0,
+    "maxLongPnL": 0.329504268783879,
+    "maxShortPnL": 0
   },
   "cooldownUntil": 0
 }

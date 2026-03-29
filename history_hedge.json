@@ -33,5 +33,12 @@
     "durationMinutes": "4.6",
     "reason": "🔄 [Phase 2] RSI 반등 회복점(60경계) 도달. 반등세 약화로 롱 손절 마감.",
     "totalPnlUSDT": -0.0105
+  },
+  {
+    "time": "3/29/2026, 12:15:32 PM",
+    "mode": "HEDGE_LIVE",
+    "durationMinutes": "618.8",
+    "reason": "💰 [Phase 2] 합산 순수익 5% 돌파! (0.7267 USDT). 차익 실현 후 사이클 종료.",
+    "totalPnlUSDT": 0.7267
   }
 ]
