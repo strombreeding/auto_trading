@@ -123,6 +123,24 @@ export function checkHedgeExitLogic(hedgeTrade, indicators, symbol) {
   if (hedgeTrade.winnerClosed) {
     const openSide = hedgeTrade.sideOpened.long ? "long" : "short";
 
+    // 🛠️ [추가된 부분] 합산 수익 계산 (Winner 확정 수익 + 현재 Loser 실시간 수익)
+    const securedProfit = hedgeTrade.winnerPnL || 0;
+    const currentOpenPnL = openSide === "long" ? longNetUSDT : shortNetUSDT;
+    const totalNetUSDT = securedProfit + currentOpenPnL; // 수수료가 이미 감안된 순수 합산 금액
+
+    // 🛠️ [추가된 부분] 합산 5% 순수익 목표가 설정 (전체 증거금 대비 5%)
+    const TARGET_COMBINED_PROFIT = totalMargin * 0.05;
+
+    // 🛠️ [추가된 부분] 합산 수익이 5%에 도달하면 Loser가 마이너스라도 즉시 전량 종료
+    if (totalNetUSDT >= TARGET_COMBINED_PROFIT) {
+      return {
+        action: "CLOSE_LOSER",
+        side: openSide,
+        pnlUSDT: currentOpenPnL,
+        reason: `💰 [Phase 2] 합산 순수익 5% 돌파! (${totalNetUSDT.toFixed(4)} USDT). 차익 실현 후 사이클 종료.`,
+      };
+    }
+
     if (openSide === "long") {
       // 롱이 남았음 (가격 폭락 후 숏이 익절됨 -> 반등을 기다리는 중)
       if (longNetUSDT >= 0) {
@@ -161,13 +179,7 @@ export function checkHedgeExitLogic(hedgeTrade, indicators, symbol) {
       }
     }
 
-    const securedProfit = hedgeTrade.winnerPnL || 0;
-    const currentOpenPnL = openSide === "long" ? longNetUSDT : shortNetUSDT;
-    const totalNetUSDT = securedProfit + currentOpenPnL;
-
-    // (이전에 있던 '확보 수익 70% 훼손 방어선'은 양방향 헷지 구조의 수학적 모순으로 인해 삭제되었습니다.
-    // 롱이 익절하는 순간 숏은 이미 100% 훼손 상태(본전)이므로 즉시 청산되는 오류 방지)
-
+    // 🛠️ [수정된 부분] 위에서 미리 계산한 totalNetUSDT 변수 활용 (중복 계산 제거)
     // 보호 로직 2: 합산 손실 방어선 (전체 마진 기준)
     if (totalNetUSDT <= -totalMargin * p.hedgeStopLossTotal) {
       return {
