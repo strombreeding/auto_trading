@@ -122,69 +122,99 @@ export function checkHedgeExitLogic(hedgeTrade, indicators, symbol) {
   // 2. Phase 2: Loser 관리 및 구출 로직 (하나만 남았을 때)
   if (hedgeTrade.winnerClosed) {
     const openSide = hedgeTrade.sideOpened.long ? "long" : "short";
-
-    // 🛠️ [추가된 부분] 합산 수익 계산 (Winner 확정 수익 + 현재 Loser 실시간 수익)
     const securedProfit = hedgeTrade.winnerPnL || 0;
     const currentOpenPnL = openSide === "long" ? longNetUSDT : shortNetUSDT;
-    const totalNetUSDT = securedProfit + currentOpenPnL; // 수수료가 이미 감안된 순수 합산 금액
+    const totalNetUSDT = securedProfit + currentOpenPnL;
 
-    // 🛠️ [추가된 부분] 합산 5% 순수익 목표가 설정 (전체 증거금 대비 5%)
-    const TARGET_COMBINED_PROFIT = totalMargin * 0.05;
+    // 🛠️ [수정] Winner 종료 후 경과 시간 계산 (분 단위)
+    const durationMin = hedgeTrade.winnerClosedTime
+      ? (Date.now() - hedgeTrade.winnerClosedTime) / 60000
+      : 0;
 
-    // 🛠️ [추가된 부분] 합산 수익이 5%에 도달하면 Loser가 마이너스라도 즉시 전량 종료
-    if (totalNetUSDT >= TARGET_COMBINED_PROFIT) {
+    // 🛠️ [신규] 동적 수익 목표 설정 (2% ~ 4%)
+    const MIN_QUICK_EXIT = totalMargin * 0.02; // 2% 수익
+    const MAX_QUICK_EXIT = totalMargin * 0.04; // 4% 수익 (이 이상은 즉시 종료)
+
+    // 🚀 [신규] 2~4% 사이의 '빠른 탈출' 로직
+    if (totalNetUSDT >= MIN_QUICK_EXIT) {
+      // A. 4% 도달 시 더 볼 것도 없이 즉시 종료
+      if (totalNetUSDT >= MAX_QUICK_EXIT) {
+        return {
+          action: "CLOSE_LOSER",
+          side: openSide,
+          pnlUSDT: currentOpenPnL,
+          reason: `🎯 [Quick Exit] 합산 수익 4% 돌파! 시간 절약을 위해 즉시 익절.`,
+        };
+      }
+
+      // B. 2~4% 사이인데 RSI가 꺾이거나 15분이 지났다면 조기 종료
+      if (openSide === "long" && (rsi >= 55 || durationMin >= 15)) {
+        return {
+          action: "CLOSE_LOSER",
+          side: openSide,
+          pnlUSDT: currentOpenPnL,
+          reason: `💰 [Quick Exit] 2% 이상 수익 중 RSI(${rsi.toFixed(1)}) 저항 또는 15분 경과로 탈출.`,
+        };
+      }
+      if (openSide === "short" && (rsi <= 45 || durationMin >= 15)) {
+        return {
+          action: "CLOSE_LOSER",
+          side: openSide,
+          pnlUSDT: currentOpenPnL,
+          reason: `💰 [Quick Exit] 2% 이상 수익 중 RSI(${rsi.toFixed(1)}) 지지 또는 15분 경과로 탈출.`,
+        };
+      }
+    }
+
+    // ⏳ [신규] Time Decay (자본 회수) 로직
+    // 구출 시작 30분이 넘었는데 합산이 본절(1%) 근처라면 미련 없이 종료
+    if (durationMin >= 30 && totalNetUSDT >= totalMargin * 0.01) {
       return {
         action: "CLOSE_LOSER",
         side: openSide,
         pnlUSDT: currentOpenPnL,
-        reason: `💰 [Phase 2] 합산 순수익 5% 돌파! (${totalNetUSDT.toFixed(4)} USDT). 차익 실현 후 사이클 종료.`,
+        reason: `⌛ [Time Decay] 30분 경과. 1% 합산 수익권에서 다음 판을 위해 탈출.`,
       };
     }
 
+    // 기존 개별 본절 및 RSI 60/40 탈출 (유지)
     if (openSide === "long") {
-      // 롱이 남았음 (가격 폭락 후 숏이 익절됨 -> 반등을 기다리는 중)
-      if (longNetUSDT >= 0) {
+      if (longNetUSDT >= 0)
         return {
           action: "CLOSE_LOSER",
           side: "long",
           pnlUSDT: longNetUSDT,
-          reason: `🔄 [Phase 2] 본절/수익권 회복 달성! 물려있던 롱 구출 성공.`,
+          reason: "🔄 본절 회복.",
         };
-      }
-      if (rsi >= 60) {
+      if (rsi >= 60)
         return {
           action: "CLOSE_LOSER",
           side: "long",
           pnlUSDT: longNetUSDT,
-          reason: `🔄 [Phase 2] RSI 반등 회복점(60경계) 도달. 반등세 약화로 롱 손절 마감.`,
+          reason: "🔄 RSI 반등 지점 도달.",
         };
-      }
-    } else if (openSide === "short") {
-      // 숏이 남았음 (가격 폭등 후 롱이 익절됨 -> 하락 반전을 기다리는 중)
-      if (shortNetUSDT >= 0) {
+    } else {
+      if (shortNetUSDT >= 0)
         return {
           action: "CLOSE_LOSER",
           side: "short",
           pnlUSDT: shortNetUSDT,
-          reason: `🔄 [Phase 2] 본절/수익권 회복 달성! 물려있던 숏 구출 성공.`,
+          reason: "🔄 본절 회복.",
         };
-      }
-      if (rsi <= 40) {
+      if (rsi <= 40)
         return {
           action: "CLOSE_LOSER",
           side: "short",
           pnlUSDT: shortNetUSDT,
-          reason: `🔄 [Phase 2] RSI 하락 회복점(40경계) 도달. 하락세 약화로 숏 손절 마감.`,
+          reason: "🔄 RSI 하락 지점 도달.",
         };
-      }
     }
 
-    // 🛠️ [수정된 부분] 위에서 미리 계산한 totalNetUSDT 변수 활용 (중복 계산 제거)
-    // 보호 로직 2: 합산 손실 방어선 (전체 마진 기준)
+    // 보호 로직 (유지)
     if (totalNetUSDT <= -totalMargin * p.hedgeStopLossTotal) {
       return {
         action: "PROTECTION_CLOSE",
-        reason: "🚨 [Protection] 합산 손실 초과. 전량 컷오프.",
+        reason: "🚨 합산 손실 초과.",
         totalNetUSDT,
       };
     }
