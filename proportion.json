@@ -1,5 +1,5 @@
 {
-  "powerOn": true,
+  "powerOn": false,
   "bots": {
     "hybrid_5m": {
       "name": "Hybrid Engine 5M (First Bot)",
