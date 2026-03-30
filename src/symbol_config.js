@@ -13,18 +13,18 @@ export function getSymbolParams(symbol) {
       mainTouchBuffer: 0.003, // 0.3% (BTC 0.2%)
       mainFakeoutBuffer: 0.002, // 0.2% (BTC 0.1%)
       mainBreakoutBuffer: 0.004, // 0.4% (BTC 0.3%)
-      mainTakeProfitBreakout: 0.02, // 2.0% (BTC 1.5%)
+      mainTakeProfitBreakout: 0.025, // 2.0% (BTC 1.5%)
       mainTakeProfitReclaim: 0.008, // 0.8% (BTC 0.5%)
-      mainStopLossBreakout: 0.015, // 1.5% (BTC 0.7%)
+      mainStopLossBreakout: 0.01, // 1.5% (BTC 0.7%)
 
       // Sentry 15M Bot
-      sentryBreakoutBuffer: 0.004, // 0.4% (BTC 0.2%)
+      sentryBreakoutBuffer: 0.002, // 0.4% (BTC 0.2%)
       sentryTakeProfit: 0.009, // 0.9% (BTC 0.6%)
-      sentryStopLoss: 0.018, // 1.8% (BTC 1.0%)
+      sentryStopLoss: 0.009, // 1.8% (BTC 1.0%)
 
       // Hedge V-Catch Bot
       hedgeTakeProfit: 0.009, // 0.9% (BTC 0.6%) => margin * 0.09
-      hedgeStopLossTotal: 0.045, // 전체 합산 손실 방어선 -4.5% (BTC -3.0%)
+      hedgeStopLossTotal: 0.035, // 전체 합산 손실 방어선 -4.5% (BTC -3.0%)
       hedgeProfitProtect: 0.3, // 확보 수익 70% 훼손 방어용 잔류선 (30%)
     };
   }

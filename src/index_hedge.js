@@ -150,6 +150,9 @@ async function monitorLoop() {
         appState.hedgeTrade.winnerClosed = sideToClose;
         appState.hedgeTrade.winnerPnL = exitResult.profitUSDT;
 
+        // 🛠️ [추가] Winner가 팔린 시간을 기록하여 Phase 2 타이머 시작
+        appState.hedgeTrade.winnerClosedTime = Date.now();
+
         console.log(`\n============== [HEDGE WINNER 익절] ==============`);
         console.log(
           `방향: ${sideToClose.toUpperCase()} | 사유: ${exitResult.reason}`,
