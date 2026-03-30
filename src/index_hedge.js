@@ -9,13 +9,11 @@ import {
 import { powerState } from "./symbol_config.js";
 
 let symbol = "BTC/USDT:USDT";
-let proportion;
 try {
   const configPath = path.join(process.cwd(), "proportion.json");
   if (fs.existsSync(configPath)) {
     const configStr = fs.readFileSync(configPath, "utf8");
     const config = JSON.parse(configStr);
-    proportion = config;
     if (config.bots?.hedge_v?.symbol) symbol = config.bots.hedge_v.symbol;
   }
 } catch (e) {}
