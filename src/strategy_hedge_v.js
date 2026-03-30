@@ -131,13 +131,17 @@ export function checkHedgeExitLogic(hedgeTrade, indicators, symbol) {
       ? (Date.now() - hedgeTrade.winnerClosedTime) / 60000
       : 0;
 
+    // 🛠️ [신규] 반등 유력 구간(Safe Zone) 여부 판단
+    // 롱 Loser인데 RSI가 35 이하이거나, 숏 Loser인데 RSI가 65 이상인 경우
+    const isInReversionZone =
+      (openSide === "long" && rsi <= 35) || (openSide === "short" && rsi >= 65);
+
     // 🛠️ [신규] 동적 수익 목표 설정 (2% ~ 4%)
     const MIN_QUICK_EXIT = totalMargin * 0.02; // 2% 수익
     const MAX_QUICK_EXIT = totalMargin * 0.04; // 4% 수익 (이 이상은 즉시 종료)
 
     // 🚀 [신규] 2~4% 사이의 '빠른 탈출' 로직
     if (totalNetUSDT >= MIN_QUICK_EXIT) {
-      // A. 4% 도달 시 더 볼 것도 없이 즉시 종료
       if (totalNetUSDT >= MAX_QUICK_EXIT) {
         return {
           action: "CLOSE_LOSER",
@@ -147,7 +151,6 @@ export function checkHedgeExitLogic(hedgeTrade, indicators, symbol) {
         };
       }
 
-      // B. 2~4% 사이인데 RSI가 꺾이거나 15분이 지났다면 조기 종료
       if (openSide === "long" && (rsi >= 55 || durationMin >= 15)) {
         return {
           action: "CLOSE_LOSER",
@@ -167,7 +170,6 @@ export function checkHedgeExitLogic(hedgeTrade, indicators, symbol) {
     }
 
     // ⏳ [신규] Time Decay (자본 회수) 로직
-    // 구출 시작 30분이 넘었는데 합산이 본절(1%) 근처라면 미련 없이 종료
     if (durationMin >= 30 && totalNetUSDT >= totalMargin * 0.01) {
       return {
         action: "CLOSE_LOSER",
@@ -210,11 +212,24 @@ export function checkHedgeExitLogic(hedgeTrade, indicators, symbol) {
         };
     }
 
-    // 보호 로직 (유지)
+    // 🛠️ [수정] 보호 로직 (14분 유예 반영)
     if (totalNetUSDT <= -totalMargin * p.hedgeStopLossTotal) {
+      // 🔥 [신규 추가] 14분 반등 유예 필터 (꼬리 방어 핵심)
+      // RSI가 여전히 극점 구간에 있고, Winner 종료 후 14분 이내라면 손절을 나가지 않고 버팁니다.
+      if (isInReversionZone && durationMin < 14) {
+        return {
+          action: "HOLD",
+          rsi,
+          longNetUSDT,
+          shortNetUSDT,
+          reason: `🛡️ [Safe Zone] 지표 신뢰 구간 및 유예 시간 내 급락. 반등 대기 (경과: ${durationMin.toFixed(1)}분)`,
+        };
+      }
+
+      // 유예 시간이 지났거나 RSI가 이미 중립으로 올라왔음에도 손실이 크다면 최종 컷오프
       return {
         action: "PROTECTION_CLOSE",
-        reason: "🚨 합산 손실 초과.",
+        reason: "🚨 합산 손실 초과. (유예 시간 종료 또는 반등 실패)",
         totalNetUSDT,
       };
     }
