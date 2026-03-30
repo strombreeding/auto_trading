@@ -294,6 +294,19 @@ async function monitorLoop() {
             params,
           );
           console.log("✅ [SENTRY LIVE] 실거래 진입 성공!");
+          const entryLog = {
+            time: new Date().toLocaleString(),
+            symbol: symbol,
+            mode: signal.mode,
+            side: signal.side.toUpperCase(),
+            reason: signal.reason,
+            // 🔍 복기를 위한 디테일 데이터 추가
+            detail: {
+              adx: indicators.adx.toFixed(2),
+            },
+          };
+
+          appendHistory(entryLog);
         } catch (err) {
           console.error("❌ [SENTRY LIVE] 에러:", err.message);
         }

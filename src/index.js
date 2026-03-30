@@ -249,8 +249,6 @@ async function monitorLoop() {
     console.log(`[상태] ${signal.reason}`);
 
     if (signal.shouldEnter) {
-      // 잔고 조건 필터링 해제
-
       const side = signal.side;
       let rawAmount = calculatePositionSize(
         usdtBalance,
@@ -309,6 +307,28 @@ async function monitorLoop() {
           console.log(
             "✅ [LIVE] 🚀 브라켓 오더와 함께 성공적으로 실거래 진입을 완료했습니다!",
           );
+          const entryLog = {
+            time: new Date().toLocaleString(),
+            symbol: symbol,
+            mode: signal.mode,
+            side: signal.side.toUpperCase(),
+            entryPrice: indicators.currentPrice5M,
+            reason: signal.reason,
+            // 🔍 복기를 위한 디테일 데이터 추가
+            detail: {
+              adx: indicators.adx.toFixed(2),
+              support: indicators.support1H,
+              resistance: indicators.resistance1H,
+              touchCount:
+                signal.mode === "RECLAIM"
+                  ? signal.side === "buy"
+                    ? appState.strategyData.supportTouches.length
+                    : appState.strategyData.resistanceTouches.length
+                  : null,
+            },
+          };
+
+          appendHistory(entryLog);
         } catch (err) {
           console.error("❌ [LIVE] 진입 중 에러 발생:", err.message);
         }
