@@ -40,5 +40,19 @@
     "durationMinutes": "618.8",
     "reason": "💰 [Phase 2] 합산 순수익 5% 돌파! (0.7267 USDT). 차익 실현 후 사이클 종료.",
     "totalPnlUSDT": 0.7267
+  },
+  {
+    "time": "3/30/2026, 7:45:23 AM",
+    "mode": "HEDGE_LIVE",
+    "durationMinutes": "1169.8",
+    "reason": "🚨 [Protection] 합산 손실 초과. 전량 컷오프.",
+    "totalPnlUSDT": -1.3046
+  },
+  {
+    "time": "3/30/2026, 7:51:08 AM",
+    "mode": "HEDGE_LIVE",
+    "durationMinutes": "0.7",
+    "reason": "🔄 [Phase 2] 본절/수익권 회복 달성! 물려있던 롱 구출 성공.",
+    "totalPnlUSDT": 0.1138
   }
 ]
