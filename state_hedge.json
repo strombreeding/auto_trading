@@ -1,5 +1,5 @@
 {
-  "currentUSDT": 28.36436098426463,
+  "currentUSDT": 28.338260984264625,
   "hedgeTrade": {
     "entryTime": 1774824674087,
     "proportion": 0.5,
@@ -14,7 +14,6 @@
     "rsiTouched": "overbought",
     "winnerClosed": "long",
     "winnerPnL": 3.975591801732588,
-    "winnerClosedTime": 1774847706000,
     "maxLongPnL": 3.9931844825978255,
     "maxShortPnL": 0
   },
