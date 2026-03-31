@@ -75,5 +75,13 @@
     "durationMinutes": "628.9",
     "reason": "⌛ [Time Decay] 30분 경과. 1% 합산 수익권에서 다음 판을 위해 탈출.",
     "totalPnlUSDT": 0.1498
+  },
+  {
+    "time": "3/31/2026, 6:53:43 PM",
+    "mode": "HEDGE_LIVE",
+    "durationMinutes": "832.0",
+    "reason": "🚨 합산 손실 초과. (유예 시간 종료 또는 반등 실패)",
+    "totalPnlUSDT": -0.6374
   }
 ]
+ 
