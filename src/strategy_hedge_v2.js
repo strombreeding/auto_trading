@@ -7,8 +7,12 @@ export function calculateHedgePositionSize(
   currentPrice,
   proportion,
 ) {
+  // [수정] 90% 안전 버퍼 적용: 수수료 및 진입 시 슬리피지를 고려해 가용 잔고의 90%만 사용 (51008 에러 방지)
+  const safetyBuffer = 0.9;
+  const safeBalance = usdtBalance * safetyBuffer;
+
   // 양방향 각각 총 비중의 절반씩. proportion이 0.20 이라면 롱 10%, 숏 10%
-  const oneSideMarginSize = usdtBalance * (proportion / 2);
+  const oneSideMarginSize = safeBalance * (proportion / 2);
   const positionValue = oneSideMarginSize * 10; // 10배 레버리지
   return positionValue / currentPrice;
 }
@@ -23,6 +27,9 @@ export function checkHedgeExitLogic(hedgeTrade, indicators, symbol) {
   const netFeeRate = getNetFeeRate();
   const p = getSymbolParams(symbol);
 
+  // [추가] 최소 익절 수익률 제한 (2%): 수수료를 제외하고 내 주머니에 남는 게 있을 때만 매도
+  const MIN_PROFIT_LIMIT = 0.02;
+
   // 초기 익절 비중 (profitPercent()가 50이면 0.5)
   const initialProfitRate = profitPercent() / 100;
 
@@ -32,22 +39,24 @@ export function checkHedgeExitLogic(hedgeTrade, indicators, symbol) {
   const totalMargin = initialMarginPerSide * 2;
   const currentQtyRate = hedgeTrade.currentQtyRate || 1.0;
 
+  // 현재 포지션에 투입된 실제 마진 (익절 후 남은 비중 반영)
+  const currentMarginPerSide = initialMarginPerSide * currentQtyRate;
+
   // 실시간 PnL 계산
   const longRawPnL = (currentPrice / hedgeTrade.longEntry - 1) * 10;
   const shortRawPnL =
     ((hedgeTrade.shortEntry - currentPrice) / hedgeTrade.shortEntry) * 10;
 
+  // [수정] 순수익 계산 시 현재 남은 마진(currentMarginPerSide)을 기준으로 계산하도록 정교화
   const longNetUSDT = hedgeTrade.sideOpened.long
-    ? initialMarginPerSide * currentQtyRate * longRawPnL -
-      initialMarginPerSide * 10 * netFeeRate
+    ? currentMarginPerSide * longRawPnL - currentMarginPerSide * 10 * netFeeRate
     : 0;
   const shortNetUSDT = hedgeTrade.sideOpened.short
-    ? initialMarginPerSide * currentQtyRate * shortRawPnL -
-      initialMarginPerSide * 10 * netFeeRate
+    ? currentMarginPerSide * shortRawPnL -
+      currentMarginPerSide * 10 * netFeeRate
     : 0;
 
   const realizedProfit = hedgeTrade.realizedProfit || 0;
-  // 전체 합산 수익 = (승리 포지션 확정 수익) + (진행 중인 미실현 수익) + (부분 익절 실현 수익)
   const totalNetUSDT =
     (hedgeTrade.winnerPnL || 0) + longNetUSDT + shortNetUSDT + realizedProfit;
 
@@ -63,9 +72,16 @@ export function checkHedgeExitLogic(hedgeTrade, indicators, symbol) {
     const side = isLongWinner ? "long" : "short";
     const winnerNetUSDT = isLongWinner ? longNetUSDT : shortNetUSDT;
 
-    // A. 초기 익절 (RSI 70/30 도달 시 즉시 실행)
+    // [추가] 현재 Winner 포지션의 순수익률(PnL %) 계산
+    const currentWinnerPnlRate = winnerNetUSDT / currentMarginPerSide;
+
+    // A. 초기 익절 (RSI 70/30 도달 시)
     if (!hedgeTrade.partialWinnerClosed) {
-      if ((isLongWinner && rsi >= 70) || (!isLongWinner && rsi <= 30)) {
+      // [수정] RSI 조건 뿐만 아니라 수익률이 2% 이상(MIN_PROFIT_LIMIT)일 때만 실행
+      const isRsiTriggered =
+        (isLongWinner && rsi >= 70) || (!isLongWinner && rsi <= 30);
+
+      if (isRsiTriggered && currentWinnerPnlRate >= MIN_PROFIT_LIMIT) {
         return {
           action: "CLOSE_PARTIAL_WINNER",
           side,
@@ -73,7 +89,7 @@ export function checkHedgeExitLogic(hedgeTrade, indicators, symbol) {
           profitUSDT: winnerNetUSDT * initialProfitRate,
           rsi,
           rsiTouched: hedgeTrade.rsiTouched,
-          reason: `🌋 [Initial] ${profitPercent()}% 익절 완료 (RSI: ${rsi.toFixed(1)})`,
+          reason: `🌋 [Initial] 2% 이상 수익(${(currentWinnerPnlRate * 100).toFixed(1)}%) 확인 후 익절`,
         };
       }
     }
@@ -83,14 +99,18 @@ export function checkHedgeExitLogic(hedgeTrade, indicators, symbol) {
         (Date.now() - (hedgeTrade.lastPartialExitTime || 0)) / 1000;
       const isStillInZone = isLongWinner ? rsi >= 70 : rsi <= 30;
 
-      // [강화된 조건] 40초가 지났고, RSI가 이전 익절 시점보다 더 유리하게 갱신되었을 때만!
-      // 롱이면 이전보다 RSI가 높아야 하고, 숏이면 이전보다 RSI가 낮아야 함.
       const lastRsi = hedgeTrade.lastRsi || (isLongWinner ? 70 : 30);
       const isImproving = isLongWinner
         ? rsi > lastRsi + 0.2
         : rsi < lastRsi - 0.2;
 
-      if (timeSinceLastExit >= 40 && isStillInZone && isImproving) {
+      // [수정] 피라미딩 시에도 수익률이 최소 기준(2%)을 유지하고 있는지 체크하면 더 안전함
+      if (
+        timeSinceLastExit >= 40 &&
+        isStillInZone &&
+        isImproving &&
+        currentWinnerPnlRate >= MIN_PROFIT_LIMIT
+      ) {
         return {
           action: "CLOSE_PARTIAL_WINNER",
           side,
@@ -98,12 +118,12 @@ export function checkHedgeExitLogic(hedgeTrade, indicators, symbol) {
           profitUSDT: winnerNetUSDT * 0.1,
           rsi,
           rsiTouched: hedgeTrade.rsiTouched,
-          reason: `📈 [Pyramid] 10% 추가 익절 (RSI: ${rsi.toFixed(1)} > Last: ${lastRsi.toFixed(1)})`,
+          reason: `📈 [Pyramid] 수익 유지 중(${(currentWinnerPnlRate * 100).toFixed(1)}%) 추가 익절`,
         };
       }
     }
 
-    // C. V-Catch 최종 전량 종료 (RSI가 70/30 안으로 복귀 시)
+    // C. V-Catch 최종 전량 종료
     const vCatchLong =
       hedgeTrade.rsiTouched === "overbought" && rsi < 70 && isLongWinner;
     const vCatchShort =
@@ -122,7 +142,7 @@ export function checkHedgeExitLogic(hedgeTrade, indicators, symbol) {
   }
 
   // --------------------------------------------------------------------------
-  // Phase 2: Loser 관리 및 보호 로직
+  // Phase 2: Loser 관리 및 보호 로직 (기존 유지)
   // --------------------------------------------------------------------------
   if (hedgeTrade.winnerClosed) {
     const openSide = hedgeTrade.sideOpened.long ? "long" : "short";
@@ -130,7 +150,6 @@ export function checkHedgeExitLogic(hedgeTrade, indicators, symbol) {
     const isInReversionZone =
       (openSide === "long" && rsi <= 35) || (openSide === "short" && rsi >= 65);
 
-    // [보호 로직] 14분 반등 유예 필터
     if (totalNetUSDT <= -totalMargin * p.hedgeStopLossTotal) {
       if (isInReversionZone && durationMin < 14) {
         return {
@@ -151,7 +170,6 @@ export function checkHedgeExitLogic(hedgeTrade, indicators, symbol) {
       };
     }
 
-    // [수익 구출] 5% / 2%(15분) / 1%(1시간)
     if (totalNetUSDT >= totalMargin * 0.05) {
       return {
         action: "CLOSE_LOSER",
@@ -183,7 +201,6 @@ export function checkHedgeExitLogic(hedgeTrade, indicators, symbol) {
       };
     }
 
-    // 지표 회복 시 탈출
     if (
       (openSide === "long" && (longNetUSDT >= 0 || rsi >= 60)) ||
       (openSide === "short" && (shortNetUSDT >= 0 || rsi <= 40))
