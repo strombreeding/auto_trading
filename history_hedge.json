@@ -82,6 +82,12 @@
     "durationMinutes": "832.0",
     "reason": "🚨 합산 손실 초과. (유예 시간 종료 또는 반등 실패)",
     "totalPnlUSDT": -0.6374
+  },
+  {
+    "time": "3/31/2026, 9:14:56 PM",
+    "mode": "HEDGE_LIVE",
+    "durationMinutes": "136.2",
+    "reason": "🔄 본절 회복.",
+    "totalPnlUSDT": 0.0334
   }
 ]
- 
