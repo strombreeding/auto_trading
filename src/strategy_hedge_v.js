@@ -20,11 +20,17 @@ export function checkHedgeExitLogic(hedgeTrade, indicators, symbol) {
   if (!hedgeTrade) return { action: "NONE" };
 
   const { rsi, currentPrice } = indicators;
-  const netFeeRate = getNetFeeRate(); // 65% 페이백 반영
+  const netFeeRate = getNetFeeRate();
   const p = getSymbolParams(symbol);
 
-  const marginPerSide = hedgeTrade.usdtBefore * (hedgeTrade.proportion / 2);
-  const totalMargin = marginPerSide * 2;
+  // [중요] 초기 진입 시점의 한쪽 증거금 (10 USDT 등)
+  const initialMarginPerSide =
+    hedgeTrade.usdtBefore * (hedgeTrade.proportion / 2);
+
+  // 현재 남아있는 수량에 비례한 실시간 마진 계산
+  // (처음엔 100% 수량이다가, 50% 익절 후에는 절반만 남음)
+  const currentMarginPerSide =
+    initialMarginPerSide * (hedgeTrade.partialWinnerClosed ? 0.5 : 1.0);
 
   let longRawPnL = 0;
   let shortRawPnL = 0;
@@ -37,94 +43,87 @@ export function checkHedgeExitLogic(hedgeTrade, indicators, symbol) {
       ((hedgeTrade.shortEntry - currentPrice) / hedgeTrade.shortEntry) * 10;
   }
 
+  // 현재 보유 중인 수량에 대한 미실현 수익 (수수료는 진입 시점에 이미 전액 계산되었다고 가정하거나, 매도 시점 계산)
   const longNetUSDT = hedgeTrade.sideOpened.long
-    ? marginPerSide * longRawPnL - marginPerSide * 10 * netFeeRate
+    ? currentMarginPerSide * longRawPnL - currentMarginPerSide * 10 * netFeeRate
     : 0;
   const shortNetUSDT = hedgeTrade.sideOpened.short
-    ? marginPerSide * shortRawPnL - marginPerSide * 10 * netFeeRate
+    ? currentMarginPerSide * shortRawPnL -
+      currentMarginPerSide * 10 * netFeeRate
     : 0;
 
-  // 익절 목표 -> USDT 환산 : marginPerSide * p.hedgeTakeProfit
-  const TARGET_PROFIT_USDT = marginPerSide * p.hedgeTakeProfit;
+  // 총 합산 수익 = (미실현 수익) + (이미 50% 팔아서 챙긴 실현 수익)
+  const realizedProfit = hedgeTrade.realizedProfit || 0;
 
-  // ==============================================================================
-  // 🛠️ [추가된 부분] 트레일링 스탑을 위한 각 방향별 최고 수익(Max PnL) 추적
-  // 추세를 탈 때 봇이 본 가장 높은 수익금을 기억해 둡니다.
-  if (hedgeTrade.maxLongPnL === undefined) hedgeTrade.maxLongPnL = 0;
-  if (hedgeTrade.maxShortPnL === undefined) hedgeTrade.maxShortPnL = 0;
+  // 목표 수익 및 손절 기준은 "전체 투입 원금" 기준이므로 initialMarginPerSide 사용
+  const TARGET_PROFIT_USDT = initialMarginPerSide * p.hedgeTakeProfit;
+  const totalMargin = initialMarginPerSide * 2;
 
-  if (longNetUSDT > hedgeTrade.maxLongPnL) hedgeTrade.maxLongPnL = longNetUSDT;
-  if (shortNetUSDT > hedgeTrade.maxShortPnL)
-    hedgeTrade.maxShortPnL = shortNetUSDT;
-  // ==============================================================================
-
-  // RSI 터치 감지 업데이트 (실시간 과매수/과매도 꼬리 기록)
+  // RSI 기록 업데이트
   if (rsi >= 70) hedgeTrade.rsiTouched = "overbought";
   if (rsi <= 30) hedgeTrade.rsiTouched = "oversold";
 
-  // 1. Phase 1: Winner 청산 체크 (둘 다 켜져 있을 때)
+  // 1. Phase 1: Winner 관리 (둘 다 열려있을 때)
   if (!hedgeTrade.winnerClosed) {
-    // RSI 꺾임(V-Catch)으로 인한 익절 조건 (이건 목표수익 도달 전에도 발동하는 기존 방어막이므로 유지)
     const hitRsiTpLong =
       hedgeTrade.rsiTouched === "overbought" && rsi < 70 && longNetUSDT > 0;
     const hitRsiTpShort =
       hedgeTrade.rsiTouched === "oversold" && rsi > 30 && shortNetUSDT > 0;
 
-    // ==============================================================================
-    // 🛠️ [수정된 부분] 트레일링 스탑(MIN_PROFIT_LIMIT) 완전 삭제. 오직 RSI 극점만 봅니다.
-
-    // 1-1. 롱(Long) 방향 끝물 포착
-    if (hedgeTrade.maxLongPnL >= TARGET_PROFIT_USDT) {
-      // 목표치를 한 번이라도 넘겼다면, 수익이 떨어지든 말든 버팁니다.
-      // 오직 RSI가 70 이상(과매수 꼭대기)을 찍었을 때만 던집니다!
-      if (rsi >= 70) {
+    // 1-1. 롱(Long) 승리 시
+    if (longNetUSDT + realizedProfit >= TARGET_PROFIT_USDT) {
+      // RSI 70 이상이고 아직 50% 매도를 안 했다면? -> 50% 매도 실행
+      if (rsi >= 70 && !hedgeTrade.partialWinnerClosed) {
         return {
-          action: "CLOSE_WINNER",
+          action: "CLOSE_PARTIAL_WINNER",
           side: "long",
-          profitUSDT: longNetUSDT, // 이때 수익이 음수만 아니면 무조건 가장 좋은 타점입니다.
-          reason: `🌋 [Phase 1] 롱 목표 달성 후 홀딩 -> RSI 과매수(${rsi.toFixed(1)}) 극점 도달! 꼭대기 익절, 숏 구출 시작!`,
+          profitUSDT: longNetUSDT * 0.5, // 이번에 확정 지을 수익
+          reason: `🔥 [Partial Exit] 롱 RSI ${rsi.toFixed(1)} 도달! 50% 선제 익절.`,
         };
       }
-    } else if (hitRsiTpLong) {
-      // 목표치는 못 미쳤지만 V-catch 로직(미니 반등)에 걸렸을 때
+    }
+
+    // V-Catch 발생 시 (남은 포지션 전량 종료)
+    if (hitRsiTpLong) {
       return {
         action: "CLOSE_WINNER",
         side: "long",
-        profitUSDT: longNetUSDT,
-        reason: `🎯 [Phase 1] 롱 익절 (15M RSI 과매수 이탈 V-Catch). 숏 구출 모드 돌입!`,
+        profitUSDT: longNetUSDT + realizedProfit,
+        reason: `🎯 [Phase 1] 롱 전량 종료 (V-Catch).`,
       };
     }
 
-    // 1-2. 숏(Short) 방향 끝물 포착
-    if (hedgeTrade.maxShortPnL >= TARGET_PROFIT_USDT) {
-      // 목표치를 한 번이라도 넘겼다면, 수익이 떨어지든 말든 버팁니다.
-      // 오직 RSI가 30 이하(과매도 바닥)를 찍었을 때만 던집니다!
-      if (rsi <= 30) {
+    // 1-2. 숏(Short) 승리 시 (위와 동일 로직)
+    if (shortNetUSDT + realizedProfit >= TARGET_PROFIT_USDT) {
+      if (rsi <= 30 && !hedgeTrade.partialWinnerClosed) {
         return {
-          action: "CLOSE_WINNER",
+          action: "CLOSE_PARTIAL_WINNER",
           side: "short",
-          profitUSDT: shortNetUSDT,
-          reason: `🧊 [Phase 1] 숏 목표 달성 후 홀딩 -> RSI 과매도(${rsi.toFixed(1)}) 극점 도달! 바닥 익절, 롱 구출 시작!`,
+          profitUSDT: shortNetUSDT * 0.5,
+          reason: `❄️ [Partial Exit] 숏 RSI ${rsi.toFixed(1)} 도달! 50% 선제 익절.`,
         };
       }
-    } else if (hitRsiTpShort) {
-      // 목표치는 못 미쳤지만 V-catch 로직(미니 반등)에 걸렸을 때
+    }
+
+    if (hitRsiTpShort) {
       return {
         action: "CLOSE_WINNER",
         side: "short",
-        profitUSDT: shortNetUSDT,
-        reason: `🎯 [Phase 1] 숏 익절 (15M RSI 과매도 반등 V-Catch). 롱 구출 모드 돌입!`,
+        profitUSDT: shortNetUSDT + realizedProfit,
+        reason: `🎯 [Phase 1] 숏 전량 종료 (V-Catch).`,
       };
     }
-    // ==============================================================================
   }
 
   // 2. Phase 2: Loser 관리 및 구출 로직 (하나만 남았을 때)
   if (hedgeTrade.winnerClosed) {
     const openSide = hedgeTrade.sideOpened.long ? "long" : "short";
     const securedProfit = hedgeTrade.winnerPnL || 0;
-    const currentOpenPnL = openSide === "long" ? longNetUSDT : shortNetUSDT;
-    const totalNetUSDT = securedProfit + currentOpenPnL;
+    const currentOpenPnL = hedgeTrade.sideOpened.long
+      ? longNetUSDT
+      : shortNetUSDT;
+    const totalNetUSDT =
+      (hedgeTrade.winnerPnL || 0) + currentOpenPnL + realizedProfit;
 
     // 🛠️ [수정] Winner 종료 후 경과 시간 계산 (분 단위)
     const durationMin = hedgeTrade.winnerClosedTime

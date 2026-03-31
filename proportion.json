@@ -1,5 +1,6 @@
 {
-  "powerOn": false,
+  "powerOn": true,
+  "profitMode": 30,
   "bots": {
     "hybrid_5m": {
       "name": "Hybrid Engine 5M (First Bot)",
@@ -7,11 +8,11 @@
       "features": "메인 봇, 5분봉/1시간봉 기반. ADX 수치에 따라 횡보(Reclaim)와 추세(Breakout) 전략을 자동으로 스위칭합니다.",
       "proportion": 0.25
     },
-    "sentry_15m": {
+    "hedge_v2": {
       "name": "Sentry 15M (New Bot)",
       "symbol": "SOL/USDT:USDT",
       "features": "보조 봇, 15분봉 전용. 볼린저 밴드(20,2) 역추세 반등 및 ADX 기반 프랙탈 0.2% 돌파 전략을 구사합니다.",
-      "proportion": 0.35
+      "proportion": 0.5
     },
     "hedge_v": {
       "name": "Hedge V-Catch (Third Bot)",

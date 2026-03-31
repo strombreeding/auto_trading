@@ -8,8 +8,8 @@
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
     "live": "node src/index.js --live",
-    "sentry:start": "node src/index_sentry.js",
-    "sentry:live": "node src/index_sentry.js --live",
+    "hedge2:start": "node src/index_hedge_v2.js",
+    "hedge2:live": "node src/index_hedge_v2.js --live",
     "hedge:start": "node src/index_hedge.js",
     "hedge:live": "node src/index_hedge.js --live"
   },

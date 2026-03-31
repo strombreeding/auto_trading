@@ -1,11 +1,11 @@
 import fs from "fs";
 import path from "path";
-import { okxHedge, setupHedgeExchange } from "./exchange_hedge.js";
-import { getIndicatorsHedge } from "./analyzer_hedge.js";
+import { okxHedge, setupHedgeExchange } from "./exchange_hedge_v2.js";
+import { getIndicatorsHedge } from "./analyzer_hedge_v2.js";
 import {
   checkHedgeExitLogic,
   calculateHedgePositionSize,
-} from "./strategy_hedge_v.js";
+} from "./strategy_hedge_v2.js";
 import { powerState, profitPercent } from "./symbol_config.js";
 
 let symbol = "BTC/USDT:USDT";
@@ -22,11 +22,11 @@ const isLive = process.argv.includes("--live");
 
 const stateFilePath = path.join(
   process.cwd(),
-  isLive ? "state_hedge.json" : "state_hedge-dry.json",
+  isLive ? "state_hedge_v2.json" : "state_hedge-dry_v2.json",
 );
 const historyFilePath = path.join(
   process.cwd(),
-  isLive ? "history_hedge.json" : "history_hedge-dry.json",
+  isLive ? "history_hedge_v2.json" : "history_hedge-dry_v2.json",
 );
 
 let appState = null;
@@ -91,7 +91,7 @@ async function monitorLoop() {
       const configPath = path.join(process.cwd(), "proportion.json");
       if (fs.existsSync(configPath)) {
         const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
-        hedgeProportion = config.bots.hedge_v.proportion || 0.2;
+        hedgeProportion = config.bots.hedge_v2.proportion || 0.2;
       }
     } catch (e) {
       console.error("⚠️ proportion JSON 로드 에러", e.message);
@@ -127,8 +127,44 @@ async function monitorLoop() {
         indicators,
         symbol,
       );
+      if (exitResult.action === "CLOSE_PARTIAL_WINNER") {
+        const sideToClose = exitResult.side;
+        const currentAmount = appState.hedgeTrade.amount;
+        let exitQty = currentAmount * exitResult.qtyRate; // 계산된 비율만큼 매도
+        exitQty = Number(okxHedge.amountToPrecision(symbol, exitQty)); // 거래소 규격에 맞게 반올림/내림
+        if (isLive) {
+          const orderSide = sideToClose === "long" ? "sell" : "buy";
+          await okxHedge
+            .createOrder(symbol, "market", orderSide, exitQty, undefined, {
+              posSide: sideToClose,
+              marginMode: "isolated",
+            })
+            .catch(console.error);
+        }
 
-      if (exitResult.action === "CLOSE_WINNER") {
+        // 상태 업데이트
+        appState.hedgeTrade.amount -= exitQty; // 남은 수량 갱신
+        appState.hedgeTrade.currentQtyRate =
+          (appState.hedgeTrade.currentQtyRate || 1.0) - exitResult.qtyRate;
+        appState.hedgeTrade.partialWinnerClosed = true;
+        appState.hedgeTrade.realizedProfit =
+          (appState.hedgeTrade.realizedProfit || 0) + exitResult.profitUSDT;
+        appState.hedgeTrade.lastPartialExitTime = Date.now();
+        appState.hedgeTrade.lastRsi = indicators.rsi;
+
+        // 10%씩 다 팔아서 남은 게 거의 없다면 피라미딩 종료 플래그
+        if (appState.hedgeTrade.currentQtyRate <= 0.2) {
+          appState.hedgeTrade.pyramidComplete = true;
+        }
+
+        console.log(
+          `\n✨ [PARTIAL EXIT] ${sideToClose.toUpperCase()} ${exitResult.qtyRate * 100}% 익절`,
+        );
+        console.log(
+          `사유: ${exitResult.reason} | 남은비중: ${(appState.hedgeTrade.currentQtyRate * 100).toFixed(0)}%`,
+        );
+        saveAppState();
+      } else if (exitResult.action === "CLOSE_WINNER") {
         const sideToClose = exitResult.side; // long or short
         if (isLive) {
           const orderSide = sideToClose === "long" ? "sell" : "buy";

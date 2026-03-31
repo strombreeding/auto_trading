@@ -63,3 +63,16 @@ export const powerState = () => {
   }
   return null;
 };
+
+export const profitPercent = () => {
+  try {
+    const configPath = path.join(process.cwd(), "proportion.json");
+    if (fs.existsSync(configPath)) {
+      const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+      return config.profitMode;
+    }
+  } catch (e) {
+    console.error("⚠️ proportion JSON 로드 에러", e.message);
+  }
+  return null;
+};
