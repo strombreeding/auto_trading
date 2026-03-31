@@ -14,7 +14,7 @@ export function calculateHedgePositionSize(
 }
 
 /**
- * Hedge V-Catch 포지션 관리 로직 (실시간 RSI 및 피라미딩 익절)
+ * 3번 봇 전용: 실시간 피라미딩 익절 + 시간/지표 기반 Loser 구출 전략
  */
 export function checkHedgeExitLogic(hedgeTrade, indicators, symbol) {
   if (!hedgeTrade) return { action: "NONE" };
@@ -23,9 +23,10 @@ export function checkHedgeExitLogic(hedgeTrade, indicators, symbol) {
   const netFeeRate = getNetFeeRate();
   const p = getSymbolParams(symbol);
 
-  // 1. 초기 익절 비중 설정 (profitPercent()가 50이면 0.5)
+  // 초기 익절 비중 (profitPercent()가 50이면 0.5)
   const initialProfitRate = profitPercent() / 100;
 
+  // 마진 및 수량 설정
   const initialMarginPerSide =
     hedgeTrade.usdtBefore * (hedgeTrade.proportion / 2);
   const totalMargin = initialMarginPerSide * 2;
@@ -46,10 +47,11 @@ export function checkHedgeExitLogic(hedgeTrade, indicators, symbol) {
     : 0;
 
   const realizedProfit = hedgeTrade.realizedProfit || 0;
-  // [핵심] 모든 실현 수익과 미실현 수익의 총합
+  // 전체 합산 수익 = (승리 포지션 확정 수익) + (진행 중인 미실현 수익) + (부분 익절 실현 수익)
   const totalNetUSDT =
     (hedgeTrade.winnerPnL || 0) + longNetUSDT + shortNetUSDT + realizedProfit;
 
+  // RSI 터치 기록 업데이트
   if (rsi >= 70) hedgeTrade.rsiTouched = "overbought";
   if (rsi <= 30) hedgeTrade.rsiTouched = "oversold";
 
@@ -61,7 +63,7 @@ export function checkHedgeExitLogic(hedgeTrade, indicators, symbol) {
     const side = isLongWinner ? "long" : "short";
     const winnerNetUSDT = isLongWinner ? longNetUSDT : shortNetUSDT;
 
-    // A. 초기 익절 (예: 50% 매도)
+    // A. 초기 익절 (RSI 70/30 도달 시 즉시 실행)
     if (!hedgeTrade.partialWinnerClosed) {
       if ((isLongWinner && rsi >= 70) || (!isLongWinner && rsi <= 30)) {
         return {
@@ -69,31 +71,39 @@ export function checkHedgeExitLogic(hedgeTrade, indicators, symbol) {
           side,
           qtyRate: initialProfitRate,
           profitUSDT: winnerNetUSDT * initialProfitRate,
-          reason: `🌋 [Initial] ${profitPercent()}% 익절 완료`,
+          rsi,
+          rsiTouched: hedgeTrade.rsiTouched,
+          reason: `🌋 [Initial] ${profitPercent()}% 익절 완료 (RSI: ${rsi.toFixed(1)})`,
         };
       }
     }
-    // B. 피라미딩 추격 매도 (10%씩 최대 5번)
-    else if (currentQtyRate > 0.05) {
-      // 남은 수량이 있을 때까지
+    // B. 피라미딩 추격 매도 (10%씩)
+    else if (currentQtyRate > 0.05 && !hedgeTrade.pyramidComplete) {
       const timeSinceLastExit =
         (Date.now() - (hedgeTrade.lastPartialExitTime || 0)) / 1000;
-      // RSI가 계속 극점에 머물거나 더 유리해지는지 확인
       const isStillInZone = isLongWinner ? rsi >= 70 : rsi <= 30;
 
-      if (timeSinceLastExit >= 40 && isStillInZone) {
-        // 40초 간격 트래킹
+      // [강화된 조건] 40초가 지났고, RSI가 이전 익절 시점보다 더 유리하게 갱신되었을 때만!
+      // 롱이면 이전보다 RSI가 높아야 하고, 숏이면 이전보다 RSI가 낮아야 함.
+      const lastRsi = hedgeTrade.lastRsi || (isLongWinner ? 70 : 30);
+      const isImproving = isLongWinner
+        ? rsi > lastRsi + 0.2
+        : rsi < lastRsi - 0.2;
+
+      if (timeSinceLastExit >= 40 && isStillInZone && isImproving) {
         return {
           action: "CLOSE_PARTIAL_WINNER",
           side,
-          qtyRate: 0.1, // 10% 추가 익절
+          qtyRate: 0.1,
           profitUSDT: winnerNetUSDT * 0.1,
-          reason: `📈 [Pyramid] 10% 추가 익절 (남은비중: ${(currentQtyRate * 100).toFixed(0)}%)`,
+          rsi,
+          rsiTouched: hedgeTrade.rsiTouched,
+          reason: `📈 [Pyramid] 10% 추가 익절 (RSI: ${rsi.toFixed(1)} > Last: ${lastRsi.toFixed(1)})`,
         };
       }
     }
 
-    // C. [전량 익절] RSI가 극점(70/30)을 이탈하여 꺾이는 순간 (V-Catch)
+    // C. V-Catch 최종 전량 종료 (RSI가 70/30 안으로 복귀 시)
     const vCatchLong =
       hedgeTrade.rsiTouched === "overbought" && rsi < 70 && isLongWinner;
     const vCatchShort =
@@ -104,13 +114,15 @@ export function checkHedgeExitLogic(hedgeTrade, indicators, symbol) {
         action: "CLOSE_WINNER",
         side,
         profitUSDT: winnerNetUSDT + realizedProfit,
-        reason: "🎯 [V-Catch] 추세 꺾임 감지, Winner 전량 종료",
+        rsi,
+        rsiTouched: hedgeTrade.rsiTouched,
+        reason: "🎯 [V-Catch] 추세 꺾임 감지, 전량 익절",
       };
     }
   }
 
   // --------------------------------------------------------------------------
-  // 2. Phase 2: Loser 관리 및 보호 로직 (하나만 남았을 때)
+  // Phase 2: Loser 관리 및 보호 로직
   // --------------------------------------------------------------------------
   if (hedgeTrade.winnerClosed) {
     const openSide = hedgeTrade.sideOpened.long ? "long" : "short";
@@ -118,9 +130,8 @@ export function checkHedgeExitLogic(hedgeTrade, indicators, symbol) {
     const isInReversionZone =
       (openSide === "long" && rsi <= 35) || (openSide === "short" && rsi >= 65);
 
-    // [핵심] 합산 손실 보호 로직 (14분 반등 유예 필터)
+    // [보호 로직] 14분 반등 유예 필터
     if (totalNetUSDT <= -totalMargin * p.hedgeStopLossTotal) {
-      // 🛡️ [Safe Zone] RSI가 극점이고 유예 시간 내라면 손절하지 않고 대기
       if (isInReversionZone && durationMin < 14) {
         return {
           action: "HOLD",
@@ -128,30 +139,27 @@ export function checkHedgeExitLogic(hedgeTrade, indicators, symbol) {
           shortNetUSDT,
           rsi,
           rsiTouched: hedgeTrade.rsiTouched,
-          reason: `🛡️ [Safe Zone] 유예 시간 내 급락. 반등 대기 (${durationMin.toFixed(1)}분 경과)`,
+          reason: `🛡️ [Safe Zone] 유예 시간 내 반등 대기 (${durationMin.toFixed(1)}분)`,
         };
       }
-
-      // 유예 시간 종료 또는 반등 실패 시 최종 컷오프
       return {
         action: "PROTECTION_CLOSE",
-        reason: "🚨 [Loss Cut] 합산 손실 한도 초과 및 유예 시간 종료.",
+        reason: "🚨 [Loss Cut] 유예 시간 종료 또는 반등 실패.",
         totalNetUSDT,
         rsi,
         rsiTouched: hedgeTrade.rsiTouched,
       };
     }
 
-    // [수익 구출 로직]
+    // [수익 구출] 5% / 2%(15분) / 1%(1시간)
     if (totalNetUSDT >= totalMargin * 0.05) {
       return {
         action: "CLOSE_LOSER",
         side: openSide,
         pnlUSDT: openSide === "long" ? longNetUSDT : shortNetUSDT,
-        totalNetUSDT,
         rsi,
         rsiTouched: hedgeTrade.rsiTouched,
-        reason: "💰 합산 수익 5% 달성!",
+        reason: "💰 합산 수익 5% 달성",
       };
     }
     if (durationMin >= 15 && totalNetUSDT >= totalMargin * 0.02) {
@@ -159,10 +167,9 @@ export function checkHedgeExitLogic(hedgeTrade, indicators, symbol) {
         action: "CLOSE_LOSER",
         side: openSide,
         pnlUSDT: openSide === "long" ? longNetUSDT : shortNetUSDT,
-        totalNetUSDT,
         rsi,
         rsiTouched: hedgeTrade.rsiTouched,
-        reason: "⏱️ 15분 경과 & 2% 수익 탈출",
+        reason: "⏱️ 15분 경과 & 2% 수익",
       };
     }
     if (durationMin >= 60 && totalNetUSDT >= totalMargin * 0.01) {
@@ -170,14 +177,13 @@ export function checkHedgeExitLogic(hedgeTrade, indicators, symbol) {
         action: "CLOSE_LOSER",
         side: openSide,
         pnlUSDT: openSide === "long" ? longNetUSDT : shortNetUSDT,
-        totalNetUSDT,
         rsi,
         rsiTouched: hedgeTrade.rsiTouched,
-        reason: "⏳ 1시간 경과 & 1% 수익 탈출",
+        reason: "⏳ 1시간 경과 & 1% 수익",
       };
     }
 
-    // 본절 또는 지표 회복 시 탈출
+    // 지표 회복 시 탈출
     if (
       (openSide === "long" && (longNetUSDT >= 0 || rsi >= 60)) ||
       (openSide === "short" && (shortNetUSDT >= 0 || rsi <= 40))
@@ -186,31 +192,18 @@ export function checkHedgeExitLogic(hedgeTrade, indicators, symbol) {
         action: "CLOSE_LOSER",
         side: openSide,
         pnlUSDT: openSide === "long" ? longNetUSDT : shortNetUSDT,
-        totalNetUSDT,
         rsi,
         rsiTouched: hedgeTrade.rsiTouched,
-        reason: "🔄 본절/지표 회복 탈출",
-      };
-    }
-  } else {
-    // 3. 양방향 보유 중 급격한 추세로 인한 방어선 도달
-    if (totalNetUSDT <= -totalMargin * p.hedgeStopLossTotal) {
-      return {
-        action: "PROTECTION_CLOSE",
-        reason: "🚨 [Protection] 양방향 보유 중 총 손실 한계 초과.",
-        totalNetUSDT,
-        rsi,
-        rsiTouched: hedgeTrade.rsiTouched,
+        reason: "🔄 지표 회복 탈출",
       };
     }
   }
 
-  // 기본 상태 유지 (HOLD)
   return {
     action: "HOLD",
     longNetUSDT,
     shortNetUSDT,
     rsi,
-    rsiTouched: hedgeTrade.rsiTouched, // [보완] index 로그에서 Touch 상태를 보여주기 위해 필수
+    rsiTouched: hedgeTrade.rsiTouched,
   };
 }
