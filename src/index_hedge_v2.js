@@ -14,7 +14,7 @@ try {
   if (fs.existsSync(configPath)) {
     const configStr = fs.readFileSync(configPath, "utf8");
     const config = JSON.parse(configStr);
-    if (config.bots?.hedge_v?.symbol) symbol = config.bots.hedge_v.symbol;
+    if (config.bots?.hedge_v2?.symbol) symbol = config.bots.hedge_v2.symbol;
   }
 } catch (e) {}
 
@@ -35,10 +35,7 @@ function loadAppState() {
   if (fs.existsSync(stateFilePath)) {
     try {
       appState = JSON.parse(fs.readFileSync(stateFilePath, "utf8"));
-      console.log(
-        JSON.parse(fs.readFileSync(stateFilePath, "utf8")),
-        "이거 봐바",
-      );
+      console.log(JSON.parse(fs.readFileSync(stateFilePath, "utf8")));
       if (!isLive && !appState.currentUSDT) appState.currentUSDT = 100;
     } catch (e) {
       appState = {
@@ -313,10 +310,10 @@ async function monitorLoop() {
       const nowSet = await okxHedge.fetchLeverage(symbol, {
         marginMode: "isolated",
       });
-      console.log(nowSet);
+      console.log(nowSet, usdtBalance);
       // const bal = await okxHedge.fetchBalance();
       // console.log(bal.total);
-
+      console.log(amount);
       try {
         await Promise.all([
           okxHedge.createOrder(symbol, "market", "buy", amount, undefined, {

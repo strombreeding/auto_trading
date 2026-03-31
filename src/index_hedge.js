@@ -35,10 +35,7 @@ function loadAppState() {
   if (fs.existsSync(stateFilePath)) {
     try {
       appState = JSON.parse(fs.readFileSync(stateFilePath, "utf8"));
-      console.log(
-        JSON.parse(fs.readFileSync(stateFilePath, "utf8")),
-        "이거 봐바",
-      );
+      console.log(JSON.parse(fs.readFileSync(stateFilePath, "utf8")));
       if (!isLive && !appState.currentUSDT) appState.currentUSDT = 100;
     } catch (e) {
       appState = {

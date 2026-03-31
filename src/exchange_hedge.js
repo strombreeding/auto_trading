@@ -25,15 +25,6 @@ export async function testHedgeConnection() {
 
 export async function setupHedgeExchange(symbol) {
   try {
-    // await okxHedge.setLeverage(10, symbol, {
-    //   marginMode: "isolated",
-    //   posSide: "long",
-    // });
-    // await okxHedge.setLeverage(10, symbol, {
-    //   marginMode: "isolated",
-    //   posSide: "short",
-    // });
-
     // 4. 최종 검증
     const zz = await okxHedge.fetchLeverage(symbol, {
       marginMode: "isolated",
