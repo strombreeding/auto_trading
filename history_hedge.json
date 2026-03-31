@@ -61,5 +61,19 @@
     "durationMinutes": "460.2",
     "reason": "💰 [Quick Exit] 2% 이상 수익 중 RSI(61.3) 지지 또는 15분 경과로 탈출.",
     "totalPnlUSDT": 0.4479
+  },
+  {
+    "time": "3/30/2026, 6:32:42 PM",
+    "mode": "HEDGE_LIVE",
+    "durationMinutes": "181.2",
+    "reason": "⌛ [Time Decay] 30분 경과. 1% 합산 수익권에서 다음 판을 위해 탈출.",
+    "totalPnlUSDT": 0.1595
+  },
+  {
+    "time": "3/31/2026, 5:01:38 AM",
+    "mode": "HEDGE_LIVE",
+    "durationMinutes": "628.9",
+    "reason": "⌛ [Time Decay] 30분 경과. 1% 합산 수익권에서 다음 판을 위해 탈출.",
+    "totalPnlUSDT": 0.1498
   }
 ]

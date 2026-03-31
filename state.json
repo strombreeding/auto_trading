@@ -1,14 +1,23 @@
 {
-  "currentUSDT": 39.98703874427383,
+  "currentUSDT": 38.04772396342646,
   "strategyData": {
-    "lastSupport1H": 78.75,
-    "supportTouches": [],
-    "supportDipTimestamp": null,
-    "lastResistance1H": 82.19,
-    "resistanceTouches": [
-      1774841120698
+    "lastSupport1H": 82.08,
+    "supportTouches": [
+      1774946733668,
+      1774947243896,
+      1774947543970,
+      1774947844044,
+      1774948144129,
+      1774948444211,
+      1774948744289,
+      1774949044415,
+      1774949344454,
+      1774949644533
     ],
-    "resistancePumpTimestamp": 1774841100000
+    "supportDipTimestamp": 1774949700000,
+    "lastResistance1H": 84.59,
+    "resistanceTouches": [],
+    "resistancePumpTimestamp": null
   },
   "virtualTrade": null
 }
