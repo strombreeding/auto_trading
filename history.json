@@ -1,0 +1,44 @@
+[
+  {
+    "time": "3/31/2026, 2:24:56 AM",
+    "symbol": "SOL/USDT:USDT",
+    "mode": "RECLAIM",
+    "side": "BUY",
+    "entryPrice": 83.44,
+    "reason": "🚀 [Long] 0.1% 이상 이탈 후 6캔들 내 회복 (Reclaim)",
+    "detail": {
+      "adx": "19.42",
+      "support": 83.61,
+      "resistance": 84.97,
+      "touchCount": 3
+    }
+  },
+  {
+    "time": "3/31/2026, 4:00:12 AM",
+    "symbol": "SOL/USDT:USDT",
+    "mode": "BREAKOUT",
+    "side": "SELL",
+    "entryPrice": 82.64,
+    "reason": "🔥 [Short Breakout] 강한 추세 타고 지지선 0.3% 확실 하향 이탈!",
+    "detail": {
+      "adx": "25.56",
+      "support": 83.61,
+      "resistance": 84.97,
+      "touchCount": null
+    }
+  },
+  {
+    "time": "3/31/2026, 11:18:39 AM",
+    "symbol": "SOL/USDT:USDT",
+    "mode": "BREAKOUT",
+    "side": "BUY",
+    "entryPrice": 83.96,
+    "reason": "🚀 [Long Breakout] 강한 추세 타고 저항선 0.3% 확실 상향 돌파!",
+    "detail": {
+      "adx": "26.61",
+      "support": 82.08,
+      "resistance": 83.61,
+      "touchCount": null
+    }
+  }
+]
