@@ -116,7 +116,6 @@ async function monitorLoop() {
 
     const indicators = getIndicatorsHedge(ohlcv15M);
     if (!indicators) return;
-
     // 포지션이 열려있는지 확인 후 관리
     if (appState.hedgeTrade) {
       const exitResult = checkHedgeExitLogic(
@@ -285,6 +284,7 @@ async function monitorLoop() {
 
     // 포지션이 없고 쿨다운도 끝났으면 새로 양방향 진입
     // 잔고 조건 필터링 해제
+    console.log("이거 확인해", indicators);
 
     let rawAmount = calculateHedgePositionSize(
       usdtBalance,
