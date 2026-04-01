@@ -78,7 +78,7 @@ export function checkHedgeExitLogic(hedgeTrade, indicators, symbol) {
           action: "CLOSE_PARTIAL_WINNER",
           side: "long",
           profitUSDT: longNetUSDT * 0.5, // 이번에 확정 지을 수익
-          reason: `🔥 [Partial Exit] 롱 RSI ${rsi.toFixed(1)} 도달! 50% 선제 익절.`,
+          reason: `🔥 [Partial Exit] 롱 RSI ${rsi} 도달! 50% 선제 익절.`,
         };
       }
     }
@@ -100,7 +100,7 @@ export function checkHedgeExitLogic(hedgeTrade, indicators, symbol) {
           action: "CLOSE_PARTIAL_WINNER",
           side: "short",
           profitUSDT: shortNetUSDT * 0.5,
-          reason: `❄️ [Partial Exit] 숏 RSI ${rsi.toFixed(1)} 도달! 50% 선제 익절.`,
+          reason: `❄️ [Partial Exit] 숏 RSI ${rsi} 도달! 50% 선제 익절.`,
         };
       }
     }
@@ -155,7 +155,7 @@ export function checkHedgeExitLogic(hedgeTrade, indicators, symbol) {
           action: "CLOSE_LOSER",
           side: openSide,
           pnlUSDT: currentOpenPnL,
-          reason: `💰 [Quick Exit] 2% 이상 수익 중 RSI(${rsi.toFixed(1)}) 저항 또는 15분 경과로 탈출.`,
+          reason: `💰 [Quick Exit] 2% 이상 수익 중 RSI(${rsi}) 저항 또는 15분 경과로 탈출.`,
         };
       }
       if (openSide === "short" && (rsi <= 45 || durationMin >= 15)) {
@@ -163,7 +163,7 @@ export function checkHedgeExitLogic(hedgeTrade, indicators, symbol) {
           action: "CLOSE_LOSER",
           side: openSide,
           pnlUSDT: currentOpenPnL,
-          reason: `💰 [Quick Exit] 2% 이상 수익 중 RSI(${rsi.toFixed(1)}) 지지 또는 15분 경과로 탈출.`,
+          reason: `💰 [Quick Exit] 2% 이상 수익 중 RSI(${rsi}) 지지 또는 15분 경과로 탈출.`,
         };
       }
     }
@@ -221,7 +221,7 @@ export function checkHedgeExitLogic(hedgeTrade, indicators, symbol) {
           rsi,
           longNetUSDT,
           shortNetUSDT,
-          reason: `🛡️ [Safe Zone] 지표 신뢰 구간 및 유예 시간 내 급락. 반등 대기 (경과: ${durationMin.toFixed(1)}분)`,
+          reason: `🛡️ [Safe Zone] 지표 신뢰 구간 및 유예 시간 내 급락. 반등 대기 (경과: ${durationMin}분)`,
         };
       }
 

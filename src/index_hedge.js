@@ -152,9 +152,7 @@ async function monitorLoop() {
         console.log(
           `방향: ${sideToClose.toUpperCase()} | 사유: ${exitResult.reason}`,
         );
-        console.log(
-          `수익: ${exitResult.profitUSDT.toFixed(4)} USDT (수수료 제함)`,
-        );
+        console.log(`수익: ${exitResult.profitUSDT} USDT (수수료 제함)`);
         console.log(`=================================================`);
         saveAppState();
       } else if (
@@ -194,14 +192,12 @@ async function monitorLoop() {
             ? exitResult.totalNetUSDT
             : appState.hedgeTrade.winnerPnL + exitResult.pnlUSDT;
 
-        const durationMin = (
-          (Date.now() - appState.hedgeTrade.entryTime) /
-          60000
-        ).toFixed(1);
+        const durationMin =
+          (Date.now() - appState.hedgeTrade.entryTime) / 60000;
 
         console.log(`\n============== [HEDGE 전량 종료] ==============`);
         console.log(`사유: ${exitResult.reason}`);
-        console.log(`최종 합산 Net PNL: ${totalNetUSDT.toFixed(4)} USDT`);
+        console.log(`최종 합산 Net PNL: ${totalNetUSDT} USDT`);
         console.log(`소요 시간: ${durationMin}분`);
         console.log(`===========================================\n`);
 
@@ -210,7 +206,7 @@ async function monitorLoop() {
           mode: isLive ? "HEDGE_LIVE" : "HEDGE_DRY_RUN",
           durationMinutes: durationMin,
           reason: exitResult.reason,
-          totalPnlUSDT: Number(totalNetUSDT.toFixed(4)),
+          totalPnlUSDT: Number(totalNetUSDT),
         });
 
         appState.hedgeTrade = null;
@@ -236,12 +232,12 @@ async function monitorLoop() {
             openSide === "long"
               ? exitResult.longNetUSDT
               : exitResult.shortNetUSDT;
-          unRealizedRoe = `Loser(${openSide.toUpperCase()}) PNL: ${pnl.toFixed(4)} USDT`;
+          unRealizedRoe = `Loser(${openSide.toUpperCase()}) PNL: ${pnl} USDT`;
         } else {
-          unRealizedRoe = `Long: ${exitResult.longNetUSDT.toFixed(4)} / Short: ${exitResult.shortNetUSDT.toFixed(4)} USDT`;
+          unRealizedRoe = `Long: ${exitResult.longNetUSDT} / Short: ${exitResult.shortNetUSDT} USDT`;
         }
         console.log(
-          `🧪 [HEDGE] ${unRealizedRoe} | 15M RSI: ${exitResult.rsi.toFixed(1)} | Touch: ${exitResult.rsiTouched || "None"}`,
+          `🧪 [HEDGE] ${unRealizedRoe} | 15M RSI: ${exitResult.rsi} | Touch: ${exitResult.rsiTouched || "None"}`,
         );
       }
       return;

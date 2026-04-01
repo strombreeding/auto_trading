@@ -28,7 +28,7 @@ export function checkHedgeExitLogic(hedgeTrade, indicators, symbol) {
   const p = getSymbolParams(symbol);
 
   // [추가] 최소 익절 수익률 제한 (2%): 수수료를 제외하고 내 주머니에 남는 게 있을 때만 매도
-  const MIN_PROFIT_LIMIT = 0.02;
+  const MIN_PROFIT_LIMIT = 0.025;
 
   // 초기 익절 비중 (profitPercent()가 50이면 0.5)
   const initialProfitRate = profitPercent() / 100;
@@ -89,7 +89,7 @@ export function checkHedgeExitLogic(hedgeTrade, indicators, symbol) {
           profitUSDT: winnerNetUSDT * initialProfitRate,
           rsi,
           rsiTouched: hedgeTrade.rsiTouched,
-          reason: `🌋 [Initial] 2% 이상 수익(${(currentWinnerPnlRate * 100).toFixed(1)}%) 확인 후 익절`,
+          reason: `🌋 [Initial] 2% 이상 수익(${currentWinnerPnlRate * 100}%) 확인 후 익절`,
         };
       }
     }
@@ -118,7 +118,7 @@ export function checkHedgeExitLogic(hedgeTrade, indicators, symbol) {
           profitUSDT: winnerNetUSDT * 0.1,
           rsi,
           rsiTouched: hedgeTrade.rsiTouched,
-          reason: `📈 [Pyramid] 수익 유지 중(${(currentWinnerPnlRate * 100).toFixed(1)}%) 추가 익절`,
+          reason: `📈 [Pyramid] 수익 유지 중(${currentWinnerPnlRate * 100}%) 추가 익절`,
         };
       }
     }
@@ -158,7 +158,7 @@ export function checkHedgeExitLogic(hedgeTrade, indicators, symbol) {
           shortNetUSDT,
           rsi,
           rsiTouched: hedgeTrade.rsiTouched,
-          reason: `🛡️ [Safe Zone] 유예 시간 내 반등 대기 (${durationMin.toFixed(1)}분)`,
+          reason: `🛡️ [Safe Zone] 유예 시간 내 반등 대기 (${durationMin}분)`,
         };
       }
       return {
@@ -169,7 +169,7 @@ export function checkHedgeExitLogic(hedgeTrade, indicators, symbol) {
         rsiTouched: hedgeTrade.rsiTouched,
       };
     }
-    const isNetProfitPositive = totalNetUSDT >= totalMargin * 0.005;
+    const isNetProfitPositive = totalNetUSDT >= totalMargin * 0.003;
     // 1. 합산 수익 5% 달성
     if (totalNetUSDT >= totalMargin * 0.05) {
       return {
@@ -221,7 +221,7 @@ export function checkHedgeExitLogic(hedgeTrade, indicators, symbol) {
         totalNetUSDT,
         rsi,
         // 사유에 실제 수익 상태를 표기해두면 나중에 분석하기 좋습니다.
-        reason: `🔄 지표 회복 탈출 (Net: ${totalNetUSDT.toFixed(4)})`,
+        reason: `🔄 지표 회복 탈출 (Net: ${totalNetUSDT})`,
       };
     }
   }
