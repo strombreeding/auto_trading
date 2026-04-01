@@ -133,7 +133,7 @@ export function checkHedgeExitLogic(hedgeTrade, indicators, symbol) {
       return {
         action: "CLOSE_WINNER",
         side,
-        profitUSDT: winnerNetUSDT + realizedProfit,
+        profitUSDT: winnerNetUSDT,
         rsi,
         rsiTouched: hedgeTrade.rsiTouched,
         reason: "🎯 [V-Catch] 추세 꺾임 감지, 전량 익절",
@@ -169,49 +169,59 @@ export function checkHedgeExitLogic(hedgeTrade, indicators, symbol) {
         rsiTouched: hedgeTrade.rsiTouched,
       };
     }
-
+    const isNetProfitPositive = totalNetUSDT >= totalMargin * 0.005;
+    // 1. 합산 수익 5% 달성
     if (totalNetUSDT >= totalMargin * 0.05) {
       return {
         action: "CLOSE_LOSER",
         side: openSide,
-        pnlUSDT: openSide === "long" ? longNetUSDT : shortNetUSDT,
+        pnlUSDT: openSide === "long" ? longNetUSDT : shortNetUSDT, // 현재 Loser의 순수 손익만 전달
+        totalNetUSDT, // 로깅용으로 합산 수익도 같이 넘겨주면 좋음
         rsi,
-        rsiTouched: hedgeTrade.rsiTouched,
         reason: "💰 합산 수익 5% 달성",
       };
     }
+
+    // 2. 15분 경과 & 2% 수익
     if (durationMin >= 15 && totalNetUSDT >= totalMargin * 0.02) {
       return {
         action: "CLOSE_LOSER",
         side: openSide,
         pnlUSDT: openSide === "long" ? longNetUSDT : shortNetUSDT,
+        totalNetUSDT,
         rsi,
-        rsiTouched: hedgeTrade.rsiTouched,
         reason: "⏱️ 15분 경과 & 2% 수익",
       };
     }
+
+    // 3. 1시간 경과 & 1% 수익
     if (durationMin >= 60 && totalNetUSDT >= totalMargin * 0.01) {
       return {
         action: "CLOSE_LOSER",
         side: openSide,
         pnlUSDT: openSide === "long" ? longNetUSDT : shortNetUSDT,
+        totalNetUSDT,
         rsi,
-        rsiTouched: hedgeTrade.rsiTouched,
         reason: "⏳ 1시간 경과 & 1% 수익",
       };
     }
 
+    // 4. [중요 수정] 지표 회복 탈출 (본절 또는 RSI 60/40)
+    // 단순히 rsi만 보는 게 아니라, "합산 수익이 플러스(isNetProfitPositive)"일 때만 나가도록 제한
     if (
-      (openSide === "long" && (longNetUSDT >= 0 || rsi >= 60)) ||
-      (openSide === "short" && (shortNetUSDT >= 0 || rsi <= 40))
+      (openSide === "long" &&
+        (longNetUSDT >= 0 || (rsi >= 60 && isNetProfitPositive))) ||
+      (openSide === "short" &&
+        (shortNetUSDT >= 0 || (rsi <= 40 && isNetProfitPositive)))
     ) {
       return {
         action: "CLOSE_LOSER",
         side: openSide,
         pnlUSDT: openSide === "long" ? longNetUSDT : shortNetUSDT,
+        totalNetUSDT,
         rsi,
-        rsiTouched: hedgeTrade.rsiTouched,
-        reason: "🔄 지표 회복 탈출",
+        // 사유에 실제 수익 상태를 표기해두면 나중에 분석하기 좋습니다.
+        reason: `🔄 지표 회복 탈출 (Net: ${totalNetUSDT.toFixed(4)})`,
       };
     }
   }
