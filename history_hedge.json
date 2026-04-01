@@ -89,5 +89,19 @@
     "durationMinutes": "136.2",
     "reason": "🔄 본절 회복.",
     "totalPnlUSDT": 0.0334
+  },
+  {
+    "time": "3/31/2026, 11:52:09 PM",
+    "mode": "HEDGE_LIVE",
+    "durationMinutes": "157.1",
+    "reason": "🔄 본절 회복.",
+    "totalPnlUSDT": 0.0333
+  },
+  {
+    "time": "4/1/2026, 4:20:21 PM",
+    "mode": "HEDGE_LIVE",
+    "durationMinutes": "988.1",
+    "reason": "💰 [Quick Exit] 2% 이상 수익 중 RSI(70.8) 지지 또는 15분 경과로 탈출.",
+    "totalPnlUSDT": 0.2879
   }
 ]
