@@ -1,5 +1,5 @@
 {
-  "currentUSDT": 42.539826052804656,
+  "currentUSDT": 42.576426052804656,
   "hedgeTrade": {
     "entryTime": 1775109542557,
     "proportion": 0.5,
@@ -19,5 +19,6 @@
     "currentQtyRate": 1,
     "winnerClosedTime": 1775131963809
   },
-  "cooldownUntil": 1775093832272
+  "cooldownUntil": 1775093832272,
+  "profitMode": 30
 }

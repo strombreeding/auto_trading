@@ -275,8 +275,8 @@ async function monitorLoop() {
         if (appState.hedgeTrade.shortAmount > 0)
           openSides.push(`Short:${exitResult.shortNetUSDT.toFixed(2)}`);
 
-        process.stdout.write(
-          `\r🧪 [MONITOR] ${openSides.join(" | ")} | RSI: ${indicators.rsi.toFixed(1)} | P: ${appState.profitMode}%    `,
+        console.log(
+          `🧪 [MONITOR] ${openSides.join(" | ")} | RSI: ${indicators.rsi.toFixed(1)} | P: ${appState.profitMode}%    `,
         );
       }
       return;
