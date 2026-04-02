@@ -11,6 +11,9 @@ export const FEE_CONFIG = {
   PAYBACK_RATE: 0.65,
   EXCHANGE_FIXED_CUT: 0.3,
 };
+// 수수료 설정 (0.01% = 0.0001)
+const TAKER_FEE_RATE = 0.00017; // 0.017%
+const MAKER_FEE_RATE = 0.00007; // 0.007%
 
 // 동적 비중은 proportion.json 에서 설정
 
