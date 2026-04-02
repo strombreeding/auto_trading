@@ -204,28 +204,63 @@ async function monitorLoop() {
         );
         saveAppState();
       } else if (exitResult.action === "CLOSE_WINNER") {
+        const sideToClose = exitResult.side;
         const finalQty =
-          exitResult.side === "long"
+          sideToClose === "long"
             ? appState.hedgeTrade.longAmount
             : appState.hedgeTrade.shortAmount;
-        if (isLive) {
-          await okxHedge.createOrder(
-            symbol,
-            "market",
-            exitResult.side === "long" ? "sell" : "buy",
-            finalQty,
-            undefined,
-            { posSide: exitResult.side },
-          );
+
+        // 1. 수량 검수 (51000 방지)
+        if (!finalQty || finalQty <= 0) {
+          console.log("⚠️ 종료할 수량이 0입니다. 상태만 초기화합니다.");
+          appState.hedgeTrade.sideOpened[sideToClose] = false;
+          appState.hedgeTrade.winnerClosed = sideToClose; // 누가 이겼는지는 기록
+          saveAppState();
+          return;
         }
-        appState.hedgeTrade.sideOpened[exitResult.side] = false;
-        if (exitResult.side === "long") appState.hedgeTrade.longAmount = 0;
+
+        // 2. 실전 주문 및 예외 처리
+        if (isLive) {
+          try {
+            const orderSide = sideToClose === "long" ? "sell" : "buy";
+            await okxHedge.createOrder(
+              symbol,
+              "market",
+              orderSide,
+              finalQty,
+              undefined,
+              {
+                posSide: sideToClose,
+                marginMode: "isolated",
+              },
+            );
+            console.log(
+              `✅ [HEDGE] ${sideToClose.toUpperCase()} Winner 전량 익절 주문 성공!`,
+            );
+          } catch (err) {
+            if (err.message.includes("51169")) {
+              console.log(
+                `⚠️ [Sync] 거래소에 ${sideToClose} 포지션이 이미 없습니다. 봇 기억 삭제.`,
+              );
+              appState.hedgeTrade = null; // 포지션이 아예 없으니 봇을 초기 상태로 리셋
+              saveAppState();
+              return;
+            }
+            throw err; // 다른 심각한 에러는 루프 에러로 던짐
+          }
+        }
+
+        // 3. 주문 성공 후 상태 업데이트 (중요!)
+        appState.hedgeTrade.sideOpened[sideToClose] = false; // 닫힌 쪽 표시
+        if (sideToClose === "long") appState.hedgeTrade.longAmount = 0;
         else appState.hedgeTrade.shortAmount = 0;
-        appState.hedgeTrade.winnerClosed = exitResult.side;
-        appState.hedgeTrade.winnerPnL = exitResult.profitUSDT;
-        appState.hedgeTrade.winnerClosedTime = Date.now();
+
+        appState.hedgeTrade.winnerClosed = sideToClose; // 승리자 기록
+        appState.hedgeTrade.winnerPnL = exitResult.profitUSDT; // 수익 기록
+        appState.hedgeTrade.winnerClosedTime = Date.now(); // Phase 2 타이머 시작
+
         console.log(
-          `🎯 [WINNER CLOSED] ${exitResult.side.toUpperCase()} 전량 익절 완료`,
+          `🎯 [WINNER CLOSED] ${sideToClose.toUpperCase()} 정리 완료. Phase 2 진입.`,
         );
         saveAppState();
       } else if (
