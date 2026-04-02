@@ -54,5 +54,54 @@
     "durationMinutes": "30.1",
     "reason": "🔄 지표 회복 탈출",
     "totalPnlUSDT": 0.1411
+  },
+  {
+    "time": "4/2/2026, 1:56:10 AM",
+    "mode": "HEDGE_LIVE",
+    "durationMinutes": 576.5944333333333,
+    "reason": "⏱️ 15분 경과 & 2% 수익",
+    "totalPnlUSDT": 0.07671129331906784
+  },
+  {
+    "time": "4/2/2026, 2:18:42 AM",
+    "mode": "HEDGE_LIVE",
+    "durationMinutes": 22.44635,
+    "reason": "🚨 [Loss Cut] 유예 시간 종료 또는 반등 실패.",
+    "totalPnlUSDT": -0.7812753038936533
+  },
+  {
+    "time": "4/2/2026, 6:52:32 AM",
+    "mode": "HEDGE_LIVE",
+    "durationMinutes": 268.80738333333335,
+    "reason": "💰 합산 수익 5% 달성",
+    "totalPnlUSDT": -0.019491740140556768
+  },
+  {
+    "time": "4/2/2026, 8:27:03 AM",
+    "mode": "HEDGE_LIVE",
+    "durationMinutes": 94.43825,
+    "reason": "⏳ 1시간 경과 & 1% 수익",
+    "totalPnlUSDT": -0.024518956266625893
+  },
+  {
+    "time": "4/2/2026, 9:38:13 AM",
+    "mode": "HEDGE_LIVE",
+    "durationMinutes": 71.07593333333334,
+    "reason": "⏱️ 15분 경과 & 2% 수익",
+    "totalPnlUSDT": 0.2898331286016511
+  },
+  {
+    "time": "4/2/2026, 10:08:40 AM",
+    "mode": "HEDGE_LIVE",
+    "durationMinutes": 30.3652,
+    "reason": "💰 합산 수익 5% 달성",
+    "totalPnlUSDT": 0.7749116007205736
+  },
+  {
+    "time": "4/2/2026, 10:32:12 AM",
+    "mode": "HEDGE_LIVE",
+    "durationMinutes": 23.441533333333332,
+    "reason": "🚨 [Loss Cut] 유예 시간 종료 또는 반등 실패.",
+    "totalPnlUSDT": -0.889680010867647
   }
 ]
