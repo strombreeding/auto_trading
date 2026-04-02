@@ -326,6 +326,32 @@ async function monitorLoop() {
       hedgeProportion,
     );
     await okxHedge.loadMarkets();
+    // 1. 마진 모드 설정 (레버리지 값을 params에 포함시켜야 함)
+    try {
+      // OKX는 setMarginMode 호출 시 'lever' 파라미터를 명시적으로 요구하는 경우가 많습니다.
+      await okxHedge.setMarginMode("isolated", symbol, {
+        lever: 10, // 레버리지 값을 함께 전달
+      });
+      console.log(`✅ [SETTING] 마진 모드: ISOLATED (10x) 설정 완료`);
+    } catch (e) {
+      if (!e.message.includes("No change")) {
+        console.error("⚠️ 마진모드 설정 에러:", e.message);
+      }
+    }
+
+    // 2. 레버리지 설정 (Hedge Mode에서는 long/short 각각 설정해야 함)
+    try {
+      // 롱 포지션 레버리지 설정
+      await okxHedge.setLeverage(10, symbol, { posSide: "long" });
+      // 숏 포지션 레버리지 설정
+      await okxHedge.setLeverage(10, symbol, { posSide: "short" });
+
+      console.log(`✅ [SETTING] 롱/숏 레버리지 각각 10x 설정 완료`);
+    } catch (e) {
+      if (!e.message.includes("No change")) {
+        console.error("⚠️ 레버리지 설정 에러:", e.message);
+      }
+    }
     let amount = Number(okxHedge.amountToPrecision(symbol, rawAmount));
 
     // 잔고 안전 버퍼
@@ -342,6 +368,14 @@ async function monitorLoop() {
       return;
 
     console.log(`🧨 [ENTRY] 신규 양방향 진입 시도... (수량: ${amount})`);
+    try {
+      await okxHedge.setMarginMode("isolated", symbol, { redo: true });
+      console.log(`✅ [SETTING] 마진 모드: ISOLATED 설정 완료`);
+    } catch (e) {
+      // 이미 설정되어 있거나 변경할 필요가 없는 경우 에러가 날 수 있으므로 무시 가능
+      if (!e.message.includes("No change"))
+        console.error("⚠️ 마진모드 설정 확인:", e.message);
+    }
     const [longOrder, shortOrder] = await Promise.all([
       okxHedge.createOrder(symbol, "market", "buy", amount, undefined, {
         posSide: "long",
