@@ -300,6 +300,8 @@ async function monitorLoop() {
       entryTime: Date.now(),
       proportion: hedgeProportion,
       amount: amount,
+      longAmount: amount,
+      shortAmount: amount,
       usdtBefore: usdtBalance,
       sideOpened: { long: true, short: true },
       longEntry: indicators.currentPrice,
