@@ -138,7 +138,7 @@ async function monitorLoop() {
               "sell",
               appState.hedgeTrade.longAmount,
               undefined,
-              { posSide: "long" },
+              { posSide: "long", marginMode: "isolated" },
             ),
             okxHedge.createOrder(
               symbol,
@@ -146,7 +146,7 @@ async function monitorLoop() {
               "buy",
               appState.hedgeTrade.shortAmount,
               undefined,
-              { posSide: "short" },
+              { posSide: "short", marginMode: "isolated" },
             ),
           ]).catch(console.error);
         }
@@ -183,7 +183,7 @@ async function monitorLoop() {
             sideToClose === "long" ? "sell" : "buy",
             exitQty,
             undefined,
-            { posSide: sideToClose },
+            { posSide: sideToClose, marginMode: "isolated" },
           );
           const filledQty = Number(order.filled || exitQty);
           if (sideToClose === "long")
@@ -276,7 +276,7 @@ async function monitorLoop() {
               "sell",
               appState.hedgeTrade.longAmount,
               undefined,
-              { posSide: "long" },
+              { posSide: "long", marginMode: "isolated" },
             );
           if (appState.hedgeTrade.shortAmount > 0)
             await okxHedge.createOrder(
@@ -285,7 +285,7 @@ async function monitorLoop() {
               "buy",
               appState.hedgeTrade.shortAmount,
               undefined,
-              { posSide: "short" },
+              { posSide: "short", marginMode: "isolated" },
             );
         }
         const totalNetUSDT =
@@ -379,9 +379,11 @@ async function monitorLoop() {
     const [longOrder, shortOrder] = await Promise.all([
       okxHedge.createOrder(symbol, "market", "buy", amount, undefined, {
         posSide: "long",
+        marginMode: "isolated",
       }),
       okxHedge.createOrder(symbol, "market", "sell", amount, undefined, {
         posSide: "short",
+        marginMode: "isolated",
       }),
     ]);
 
