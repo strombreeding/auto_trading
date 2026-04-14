@@ -403,15 +403,26 @@ async function monitorLoop() {
     // --------------------------------------------------------------------------
     // [보호 로직] 청산 방지용 SL 가격 계산 (10배 레버리지 기준)
     // --------------------------------------------------------------------------
+    // 지표 가격(15분 캔들 종가)은 변동성이 클 때 실시간 거래소 가격과 차이가 생길 수 있어,
+    // 아주 조금이라도 안 맞으면 OKX가 SL trigger price 에러(51278)를 반환합니다.
+    // 진입 직전 가장 최신 호가(ticker)를 기준으로 잡아야 안전합니다.
+    let livePrice = indicators.currentPrice;
+    try {
+      const ticker = await okxHedge.fetchTicker(symbol);
+      if (ticker && ticker.last) livePrice = ticker.last;
+    } catch (err) {
+      console.log("⚠️ ticker 조회 실패, 지표 가격을 임시로 사용합니다.");
+    }
+
     const SL_RATE = p.hedgeLiquidationSL || 0.08; // 8% 변동 시 손절 (청산가 전 보호)
 
     const longSL = okxHedge.priceToPrecision(
       symbol,
-      indicators.currentPrice * (1 - SL_RATE),
+      livePrice * (1 - SL_RATE)
     );
     const shortSL = okxHedge.priceToPrecision(
       symbol,
-      indicators.currentPrice * (1 + SL_RATE),
+      livePrice * (1 + SL_RATE)
     );
 
     const [longOrder, shortOrder] = await Promise.all([
@@ -438,8 +449,8 @@ async function monitorLoop() {
       shortAmount: Number(shortOrder.filled || amount),
       usdtBefore: usdtBalance,
       sideOpened: { long: true, short: true },
-      longEntry: Number(longOrder.average || indicators.currentPrice),
-      shortEntry: Number(shortOrder.average || indicators.currentPrice),
+      longEntry: Number(longOrder.average || livePrice),
+      shortEntry: Number(shortOrder.average || livePrice),
       winnerPnL: 0,
       realizedProfit: 0,
       currentQtyRate: 1.0,
