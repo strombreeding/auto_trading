@@ -15,6 +15,7 @@ try {
     const configStr = fs.readFileSync(configPath, "utf8");
     const config = JSON.parse(configStr);
     if (config.bots?.hedge_v2?.symbol) symbol = config.bots.hedge_v2.symbol;
+    else if (config.bots?.hedge_v?.symbol) symbol = config.bots.hedge_v.symbol; // hedge_v 호환성 추가
   }
 } catch (e) {}
 
@@ -78,23 +79,30 @@ function appendHistory(tradeData) {
 async function syncPositionWithExchange(hedgeTrade) {
   if (!hedgeTrade) return;
   try {
-    const positions = await okxHedge.fetchPositions(symbol);
+    const positions = await okxHedge.fetchPositions([symbol]);
 
     // 현재 열려있는 포지션 사이드 확인 (long, short)
     const activeSides = positions.map((p) => p.info.posSide); // OKX 기준 'long' or 'short'
-    // 1. 롱 포지션이 사라졌는지 확인
-    if (hedgeTrade.sideOpened.long && !activeSides.includes("long")) {
-      console.log(
-        "⚠️ [SYNC] 롱 포지션이 거래소에서 사라짐 (SL 혹은 수동종료 감지)",
-      );
+    // 1. 롱 포지션 동기화
+    const longPos = positions.find(p => p.info.posSide === 'long');
+    if (longPos) {
+      hedgeTrade.sideOpened.long = true;
+      hedgeTrade.longAmount = Number(longPos.contracts);
+      hedgeTrade.longEntry = Number(longPos.entryPrice); // 실제 평단가 동기화
+    } else {
+      if (hedgeTrade.sideOpened.long) console.log("⚠️ [SYNC] 롱 포지션 소멸 감지");
       hedgeTrade.sideOpened.long = false;
       hedgeTrade.longAmount = 0;
     }
-    // 2. 숏 포지션이 사라졌는지 확인
-    if (hedgeTrade.sideOpened.short && !activeSides.includes("short")) {
-      console.log(
-        "⚠️ [SYNC] 숏 포지션이 거래소에서 사라짐 (SL 혹은 수동종료 감지)",
-      );
+
+    // 2. 숏 포지션 동기화
+    const shortPos = positions.find(p => p.info.posSide === 'short');
+    if (shortPos) {
+      hedgeTrade.sideOpened.short = true;
+      hedgeTrade.shortAmount = Number(shortPos.contracts);
+      hedgeTrade.shortEntry = Number(shortPos.entryPrice); // 실제 평단가 동기화
+    } else {
+      if (hedgeTrade.sideOpened.short) console.log("⚠️ [SYNC] 숏 포지션 소멸 감지");
       hedgeTrade.sideOpened.short = false;
       hedgeTrade.shortAmount = 0;
     }
@@ -132,9 +140,10 @@ async function monitorLoop() {
       const configPath = path.join(process.cwd(), "proportion.json");
       if (fs.existsSync(configPath)) {
         const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
-        hedgeProportion = config.bots.hedge_v2.proportion || 0.2;
+        const hedgeKey = config.bots.hedge_v2 ? "hedge_v2" : "hedge_v";
+        hedgeProportion = config.bots[hedgeKey].proportion || 0.2;
         // strategy에서 사용할 수 있도록 appState에 profitMode 저장
-        appState.profitMode = config.bots.hedge_v2.profitMode || 30;
+        appState.profitMode = config.bots[hedgeKey].profitMode || 30;
       }
     } catch (e) {
       console.error("⚠️ proportion 로드 에러", e.message);
@@ -159,13 +168,23 @@ async function monitorLoop() {
     // [관리 로직] 포지션이 있을 때
     // --------------------------------------------------------------------------
     if (appState.hedgeTrade) {
-      // 거래소랑 싱크 맞추기
+      // 거래소랑 싱크 맞추기 (수량, 평단가)
       await syncPositionWithExchange(appState.hedgeTrade);
-      if (!appState.hedgeTrade) return; // 🛡️ SL 등에 의해 포지션이 초기화되었다면 루프 즉시 중단
+      if (!appState.hedgeTrade) return;
+
+      // 실시간 가격 가져오기 (PnL 계산 및 시각화용)
+      let livePrice = indicators.currentPrice;
+      try {
+        const ticker = await okxHedge.fetchTicker(symbol);
+        if (ticker && ticker.last) livePrice = ticker.last;
+      } catch (e) {}
+
+      // 지표 중 currentPrice를 실시간 호가로 교체하여 정확도 향상
+      const liveIndicators = { ...indicators, currentPrice: livePrice };
 
       const exitResult = checkHedgeExitLogic(
         appState.hedgeTrade,
-        indicators,
+        liveIndicators,
         symbol,
       );
 
@@ -370,18 +389,14 @@ async function monitorLoop() {
     await okxHedge.loadMarkets();
     const p = getSymbolParams(symbol);
 
-    // 1. 마진 모드 및 레버리지 설정 (진입 전 1회 수행)
+    // 1. 마진 모드 및 레버리지 설정 (에러 무시)
     try {
-      // OKX는 setMarginMode 호출 시 'lever' 파라미터를 명시적으로 요구하는 경우가 많음
-      await okxHedge.setMarginMode("isolated", symbol, { lever: 10 });
-      await okxHedge.setLeverage(10, symbol, { posSide: "long" });
-      await okxHedge.setLeverage(10, symbol, { posSide: "short" });
+      await okxHedge.setMarginMode("isolated", symbol, { posSide: "long" }).catch(() => {});
+      await okxHedge.setMarginMode("isolated", symbol, { posSide: "short" }).catch(() => {});
+      await okxHedge.setLeverage(10, symbol, { posSide: "long" }).catch(() => {});
+      await okxHedge.setLeverage(10, symbol, { posSide: "short" }).catch(() => {});
       console.log(`✅ [SETTING] 마진(Isolated) 및 레버리지(10x) 설정 완료`);
-    } catch (e) {
-      if (!e.message.includes("No change")) {
-        console.error("⚠️ 마진/레버리지 설정 에러:", e.message);
-      }
-    }
+    } catch (e) {}
 
     let amount = Number(okxHedge.amountToPrecision(symbol, rawAmount));
 
@@ -400,47 +415,64 @@ async function monitorLoop() {
 
     console.log(`🧨 [ENTRY] 신규 양방향 진입 시도... (수량: ${amount})`);
 
-    // --------------------------------------------------------------------------
-    // [보호 로직] 청산 방지용 SL 가격 계산 (10배 레버리지 기준)
-    // --------------------------------------------------------------------------
-    // 지표 가격(15분 캔들 종가)은 변동성이 클 때 실시간 거래소 가격과 차이가 생길 수 있어,
-    // 아주 조금이라도 안 맞으면 OKX가 SL trigger price 에러(51278)를 반환합니다.
-    // 진입 직전 가장 최신 호가(ticker)를 기준으로 잡아야 안전합니다.
     let livePrice = indicators.currentPrice;
     try {
       const ticker = await okxHedge.fetchTicker(symbol);
       if (ticker && ticker.last) livePrice = ticker.last;
+    } catch (err) { }
+
+    const SL_RATE = p.hedgeLiquidationSL || 0.08;
+    const longSL = okxHedge.priceToPrecision(symbol, livePrice * (1 - SL_RATE));
+    const shortSL = okxHedge.priceToPrecision(symbol, livePrice * (1 + SL_RATE));
+
+    let longOrder = null;
+    let shortOrder = null;
+    
+    // 순차 진입 (에러 발생 시 어떤 포지션인지 정확히 트래킹)
+    try {
+      // 1. OPEN LONG
+      longOrder = await okxHedge.createOrder(symbol, "market", "buy", amount, undefined, {
+        posSide: "long",
+        marginMode: "isolated"
+      });
+      
+      // 2. SET LONG SL (독립된 조건부 주문으로 발송하여 51278 에러 우회)
+      if (longOrder) {
+        await okxHedge.createOrder(symbol, "market", "sell", amount, undefined, {
+          posSide: "long",
+          marginMode: "isolated",
+          reduceOnly: true,
+          stopLossPrice: Number(longSL)
+        }).catch(err => console.error("⚠️ [LONG SL 세팅 실패]:", err.message));
+      }
     } catch (err) {
-      console.log("⚠️ ticker 조회 실패, 지표 가격을 임시로 사용합니다.");
+      console.error("⚠️ [LONG 진입 실패]:", err.message);
     }
 
-    const SL_RATE = p.hedgeLiquidationSL || 0.08; // 8% 변동 시 손절 (청산가 전 보호)
-
-    const longSL = okxHedge.priceToPrecision(
-      symbol,
-      livePrice * (1 - SL_RATE)
-    );
-    const shortSL = okxHedge.priceToPrecision(
-      symbol,
-      livePrice * (1 + SL_RATE)
-    );
-
-    const [longOrder, shortOrder] = await Promise.all([
-      okxHedge.createOrder(symbol, "market", "buy", amount, undefined, {
-        posSide: "long",
-        marginMode: "isolated",
-        // OKX 전용 SL 파라미터 (청산 방지용)
-        slTriggerPx: longSL,
-        slOrdPx: "-1",
-      }),
-      okxHedge.createOrder(symbol, "market", "sell", amount, undefined, {
+    try {
+      // 1. OPEN SHORT
+      shortOrder = await okxHedge.createOrder(symbol, "market", "sell", amount, undefined, {
         posSide: "short",
-        marginMode: "isolated",
-        // OKX 전용 SL 파라미터 (청산 방지용)
-        slTriggerPx: shortSL,
-        slOrdPx: "-1",
-      }),
-    ]);
+        marginMode: "isolated"
+      });
+
+      // 2. SET SHORT SL (독립된 조건부 주문으로 발송하여 51280 에러 우회)
+      if (shortOrder) {
+        await okxHedge.createOrder(symbol, "market", "buy", amount, undefined, {
+          posSide: "short",
+          marginMode: "isolated",
+          reduceOnly: true,
+          stopLossPrice: Number(shortSL)
+        }).catch(err => console.error("⚠️ [SHORT SL 세팅 실패]:", err.message));
+      }
+    } catch (err) {
+      console.error("⚠️ [SHORT 진입 실패]:", err.message);
+    }
+
+    if (!longOrder && !shortOrder) {
+      console.log("❌ 양쪽 모두 진입에 실패하여 거래를 취소합니다.");
+      return;
+    }
 
     appState.hedgeTrade = {
       entryTime: Date.now(),
