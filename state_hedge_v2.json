@@ -1,22 +1,6 @@
 {
-  "currentUSDT": 42.33576703087034,
-  "hedgeTrade": {
-    "entryTime": 1776093327933,
-    "proportion": 0.5,
-    "longAmount": 1.14,
-    "shortAmount": 1.14,
-    "usdtBefore": 42.39887043087033,
-    "sideOpened": {
-      "long": true,
-      "short": true
-    },
-    "longEntry": 83.18,
-    "shortEntry": 83.18,
-    "winnerPnL": 0,
-    "realizedProfit": 0,
-    "currentQtyRate": 1,
-    "rsiTouched": "overbought"
-  },
+  "currentUSDT": 42.17869428087032,
+  "hedgeTrade": null,
   "cooldownUntil": 1775093832272,
   "profitMode": 30
 }

@@ -25,6 +25,16 @@ export function getNetFeeRate() {
   return roundTripFee; // 0.00034
 }
 
+function getProfitMode() {
+  const configPath = path.join(process.cwd(), "proportion.json");
+  if (fs.existsSync(configPath)) {
+    const configStr = fs.readFileSync(configPath, "utf8");
+    const config = JSON.parse(configStr);
+    return config.profitMode || 30;
+  }
+  return 50;
+}
+
 /**
  * 3번 봇 전용: 실시간 피라미딩 익절 + 시간/지표 기반 Loser 구출 전략
  */
@@ -43,6 +53,8 @@ export function checkHedgeExitLogic(hedgeTrade, indicators, symbol) {
   const V_CATCH_BUFFER_SHORT = 32; // 30 터치 후 강제 종료선
   const V_CATCH_GRACE_SEC = 120; // 2분(120초) 유예 기간
   const RSI_REVERSAL_GAP = 1.5; // 마지막 RSI 대비 유의미한 변화량
+  const profitMode = getProfitMode(); // 외부 설정파일에서 읽어온다고 가정
+  const initialProfitRate = profitMode / 100;
 
   // 마진 및 PnL 계산 (이전과 동일)
   const longMargin = hedgeTrade.sideOpened.long
