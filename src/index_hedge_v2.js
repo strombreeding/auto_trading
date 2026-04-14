@@ -6,7 +6,7 @@ import {
   checkHedgeExitLogic,
   calculateHedgePositionSize,
 } from "./strategy_hedge_v2.js";
-import { powerState, profitPercent } from "./symbol_config.js";
+import { powerState, profitPercent, getSymbolParams } from "./symbol_config.js";
 
 let symbol = "BTC/USDT:USDT";
 try {
@@ -71,6 +71,44 @@ function appendHistory(tradeData) {
   fs.writeFileSync(historyFilePath, JSON.stringify(history, null, 2));
 }
 
+/**
+ * 거래소 포지션과 로컬 JSON 데이터 동기화
+ * (SL 등으로 인한 강제 종료 감지용)
+ */
+async function syncPositionWithExchange(hedgeTrade) {
+  if (!hedgeTrade) return;
+  try {
+    const positions = await okxHedge.fetchPositions(symbol);
+
+    // 현재 열려있는 포지션 사이드 확인 (long, short)
+    const activeSides = positions.map((p) => p.info.posSide); // OKX 기준 'long' or 'short'
+    // 1. 롱 포지션이 사라졌는지 확인
+    if (hedgeTrade.sideOpened.long && !activeSides.includes("long")) {
+      console.log(
+        "⚠️ [SYNC] 롱 포지션이 거래소에서 사라짐 (SL 혹은 수동종료 감지)",
+      );
+      hedgeTrade.sideOpened.long = false;
+      hedgeTrade.longAmount = 0;
+    }
+    // 2. 숏 포지션이 사라졌는지 확인
+    if (hedgeTrade.sideOpened.short && !activeSides.includes("short")) {
+      console.log(
+        "⚠️ [SYNC] 숏 포지션이 거래소에서 사라짐 (SL 혹은 수동종료 감지)",
+      );
+      hedgeTrade.sideOpened.short = false;
+      hedgeTrade.shortAmount = 0;
+    }
+    // 3. 양쪽 포지션이 모두 사라졌을 경우 거래 종료 처리
+    if (!hedgeTrade.sideOpened.long && !hedgeTrade.sideOpened.short) {
+      console.log("🎯 [SYNC] 모든 포지션 종료됨. 거래를 클리어합니다.");
+      hedgeTrade = null;
+      saveAppState();
+    }
+  } catch (err) {
+    console.error("❌ Position Sync Error:", err.message);
+  }
+}
+
 async function monitorLoop() {
   if (!powerState()) return console.log("파워가 꺼져있습니다. - hedge");
 
@@ -121,6 +159,10 @@ async function monitorLoop() {
     // [관리 로직] 포지션이 있을 때
     // --------------------------------------------------------------------------
     if (appState.hedgeTrade) {
+      // 거래소랑 싱크 맞추기
+      await syncPositionWithExchange(appState.hedgeTrade);
+      if (!appState.hedgeTrade) return; // 🛡️ SL 등에 의해 포지션이 초기화되었다면 루프 즉시 중단
+
       const exitResult = checkHedgeExitLogic(
         appState.hedgeTrade,
         indicators,
@@ -326,32 +368,21 @@ async function monitorLoop() {
       hedgeProportion,
     );
     await okxHedge.loadMarkets();
-    // 1. 마진 모드 설정 (레버리지 값을 params에 포함시켜야 함)
-    try {
-      // OKX는 setMarginMode 호출 시 'lever' 파라미터를 명시적으로 요구하는 경우가 많습니다.
-      await okxHedge.setMarginMode("isolated", symbol, {
-        lever: 10, // 레버리지 값을 함께 전달
-      });
-      console.log(`✅ [SETTING] 마진 모드: ISOLATED (10x) 설정 완료`);
-    } catch (e) {
-      if (!e.message.includes("No change")) {
-        console.error("⚠️ 마진모드 설정 에러:", e.message);
-      }
-    }
+    const p = getSymbolParams(symbol);
 
-    // 2. 레버리지 설정 (Hedge Mode에서는 long/short 각각 설정해야 함)
+    // 1. 마진 모드 및 레버리지 설정 (진입 전 1회 수행)
     try {
-      // 롱 포지션 레버리지 설정
+      // OKX는 setMarginMode 호출 시 'lever' 파라미터를 명시적으로 요구하는 경우가 많음
+      await okxHedge.setMarginMode("isolated", symbol, { lever: 10 });
       await okxHedge.setLeverage(10, symbol, { posSide: "long" });
-      // 숏 포지션 레버리지 설정
       await okxHedge.setLeverage(10, symbol, { posSide: "short" });
-
-      console.log(`✅ [SETTING] 롱/숏 레버리지 각각 10x 설정 완료`);
+      console.log(`✅ [SETTING] 마진(Isolated) 및 레버리지(10x) 설정 완료`);
     } catch (e) {
       if (!e.message.includes("No change")) {
-        console.error("⚠️ 레버리지 설정 에러:", e.message);
+        console.error("⚠️ 마진/레버리지 설정 에러:", e.message);
       }
     }
+
     let amount = Number(okxHedge.amountToPrecision(symbol, rawAmount));
 
     // 잔고 안전 버퍼
@@ -368,22 +399,35 @@ async function monitorLoop() {
       return;
 
     console.log(`🧨 [ENTRY] 신규 양방향 진입 시도... (수량: ${amount})`);
-    try {
-      await okxHedge.setMarginMode("isolated", symbol, { redo: true });
-      console.log(`✅ [SETTING] 마진 모드: ISOLATED 설정 완료`);
-    } catch (e) {
-      // 이미 설정되어 있거나 변경할 필요가 없는 경우 에러가 날 수 있으므로 무시 가능
-      if (!e.message.includes("No change"))
-        console.error("⚠️ 마진모드 설정 확인:", e.message);
-    }
+
+    // --------------------------------------------------------------------------
+    // [보호 로직] 청산 방지용 SL 가격 계산 (10배 레버리지 기준)
+    // --------------------------------------------------------------------------
+    const SL_RATE = p.hedgeLiquidationSL || 0.08; // 8% 변동 시 손절 (청산가 전 보호)
+
+    const longSL = okxHedge.priceToPrecision(
+      symbol,
+      indicators.currentPrice * (1 - SL_RATE),
+    );
+    const shortSL = okxHedge.priceToPrecision(
+      symbol,
+      indicators.currentPrice * (1 + SL_RATE),
+    );
+
     const [longOrder, shortOrder] = await Promise.all([
       okxHedge.createOrder(symbol, "market", "buy", amount, undefined, {
         posSide: "long",
         marginMode: "isolated",
+        // OKX 전용 SL 파라미터 (청산 방지용)
+        slTriggerPx: longSL,
+        slOrdPx: "-1",
       }),
       okxHedge.createOrder(symbol, "market", "sell", amount, undefined, {
         posSide: "short",
         marginMode: "isolated",
+        // OKX 전용 SL 파라미터 (청산 방지용)
+        slTriggerPx: shortSL,
+        slOrdPx: "-1",
       }),
     ]);
 
@@ -399,6 +443,7 @@ async function monitorLoop() {
       winnerPnL: 0,
       realizedProfit: 0,
       currentQtyRate: 1.0,
+      partialWinnerClosed: false,
     };
     saveAppState();
     console.log("✅ [ENTRY] 진입 완료!");

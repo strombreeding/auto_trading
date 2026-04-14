@@ -2,5 +2,6 @@
   "currentUSDT": 42.17869428087032,
   "hedgeTrade": null,
   "cooldownUntil": 1775093832272,
-  "profitMode": 30
+  "profitMode": 30,
+  "lastExchange": null
 }

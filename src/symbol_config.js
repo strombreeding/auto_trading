@@ -26,6 +26,7 @@ export function getSymbolParams(symbol) {
       hedgeTakeProfit: 0.009, // 0.9% (BTC 0.6%) => margin * 0.09
       hedgeStopLossTotal: 0.035, // 전체 합산 손실 방어선 -4.5% (BTC -3.0%)
       hedgeProfitProtect: 0.3, // 확보 수익 70% 훼손 방어용 잔류선 (30%)
+      hedgeLiquidationSL: 0.08, // 개별 포지션 청산 방지용 SL (8% 가격변화)
     };
   }
 
@@ -48,6 +49,7 @@ export function getSymbolParams(symbol) {
     hedgeTakeProfit: 0.006,
     hedgeStopLossTotal: 0.03,
     hedgeProfitProtect: 0.3,
+    hedgeLiquidationSL: 0.08, // 개별 포지션 청산 방지용 SL (8% 가격변화)
   };
 }
 

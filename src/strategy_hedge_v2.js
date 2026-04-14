@@ -1,4 +1,7 @@
+import fs from "fs";
+import path from "path";
 import { getSymbolParams, profitPercent } from "./symbol_config.js";
+
 
 // 계산: 포지션 사이즈
 export function calculateHedgePositionSize(
@@ -26,14 +29,19 @@ export function getNetFeeRate() {
 }
 
 function getProfitMode() {
-  const configPath = path.join(process.cwd(), "proportion.json");
-  if (fs.existsSync(configPath)) {
-    const configStr = fs.readFileSync(configPath, "utf8");
-    const config = JSON.parse(configStr);
-    return config.profitMode || 30;
+  try {
+    const configPath = path.join(process.cwd(), "proportion.json");
+    if (fs.existsSync(configPath)) {
+      const configStr = fs.readFileSync(configPath, "utf8");
+      const config = JSON.parse(configStr);
+      return config.profitMode || 30;
+    }
+  } catch (err) {
+    console.error("Critical: Error reading proportion.json, using default 30", err);
   }
-  return 50;
+  return 30; // 기본값 30%
 }
+
 
 /**
  * 3번 봇 전용: 실시간 피라미딩 익절 + 시간/지표 기반 Loser 구출 전략
@@ -103,6 +111,7 @@ export function checkHedgeExitLogic(hedgeTrade, indicators, symbol) {
           profitUSDT: winnerNetUSDT * initialProfitRate,
           rsi,
           reason: `🌋 [Initial] ${(currentWinnerPnlRate * 100).toFixed(1)}% 수익 확인 후 익절`,
+          currentWinnerPnlRate, // 다음 피라미딩 기준점으로 사용
         };
       }
     }
@@ -111,11 +120,13 @@ export function checkHedgeExitLogic(hedgeTrade, indicators, symbol) {
       const timeSinceLastExit =
         (Date.now() - (hedgeTrade.lastPartialExitTime || 0)) / 1000;
       const isStillInZone = isLongWinner ? rsi >= 70 : rsi <= 30;
+      
+      const lastWinnerPnlRate = hedgeTrade.lastWinnerPnlRate || 0; // 지난번 익절 시점 수익률
 
       if (
         timeSinceLastExit >= 40 &&
         isStillInZone &&
-        currentWinnerPnlRate >= MIN_PROFIT_LIMIT
+        currentWinnerPnlRate >= Math.max(MIN_PROFIT_LIMIT, lastWinnerPnlRate + 0.02)
       ) {
         return {
           action: "CLOSE_PARTIAL_WINNER",
@@ -123,7 +134,8 @@ export function checkHedgeExitLogic(hedgeTrade, indicators, symbol) {
           qtyRate: 0.1,
           profitUSDT: winnerNetUSDT * 0.1,
           rsi,
-          reason: `📈 [Pyramid] ${(currentWinnerPnlRate * 100).toFixed(1)}% 유지 중 추가 익절`,
+          reason: `📈 [Pyramid] 수익률 개선 감지 | ${(currentWinnerPnlRate * 100).toFixed(1)}% 추가 익절`,
+          currentWinnerPnlRate, // 다음 피라미딩 기준점으로 사용
         };
       }
     }
@@ -168,7 +180,9 @@ export function checkHedgeExitLogic(hedgeTrade, indicators, symbol) {
   // --------------------------------------------------------------------------
   if (hedgeTrade.winnerClosed) {
     const openSide = hedgeTrade.sideOpened.long ? "long" : "short";
-    const durationMin = (Date.now() - hedgeTrade.winnerClosedTime) / 60000;
+    const winnerClosedTime = hedgeTrade.winnerClosedTime || Date.now();
+    const durationMin = (Date.now() - winnerClosedTime) / 60000;
+
 
     // [수정] 안전 마진 기준 상향 (수수료 고려)
     const isNetProfitPositive = totalNetUSDT >= totalMargin * 0.005;
