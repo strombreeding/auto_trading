@@ -84,30 +84,32 @@ async function syncPositionWithExchange(hedgeTrade) {
     // 현재 열려있는 포지션 사이드 확인 (long, short)
     const activeSides = positions.map((p) => p.info.posSide); // OKX 기준 'long' or 'short'
     // 1. 롱 포지션 동기화
-    const longPos = positions.find(p => p.info.posSide === 'long');
+    const longPos = positions.find((p) => p.info.posSide === "long" && Number(p.contracts || 0) > 0);
     if (longPos) {
       hedgeTrade.sideOpened.long = true;
       hedgeTrade.longAmount = Number(longPos.contracts);
       hedgeTrade.longEntry = Number(longPos.entryPrice); // 실제 평단가 동기화
     } else {
-      if (hedgeTrade.sideOpened.long) console.log("⚠️ [SYNC] 롱 포지션 소멸 감지");
+      if (hedgeTrade.sideOpened.long)
+        console.log("⚠️ [SYNC] 롱 포지션 소멸 감지");
       hedgeTrade.sideOpened.long = false;
       hedgeTrade.longAmount = 0;
     }
 
     // 2. 숏 포지션 동기화
-    const shortPos = positions.find(p => p.info.posSide === 'short');
+    const shortPos = positions.find((p) => p.info.posSide === "short" && Number(p.contracts || 0) > 0);
     if (shortPos) {
       hedgeTrade.sideOpened.short = true;
       hedgeTrade.shortAmount = Number(shortPos.contracts);
       hedgeTrade.shortEntry = Number(shortPos.entryPrice); // 실제 평단가 동기화
     } else {
-      if (hedgeTrade.sideOpened.short) console.log("⚠️ [SYNC] 숏 포지션 소멸 감지");
+      if (hedgeTrade.sideOpened.short)
+        console.log("⚠️ [SYNC] 숏 포지션 소멸 감지");
       hedgeTrade.sideOpened.short = false;
       hedgeTrade.shortAmount = 0;
     }
     // 3. 양쪽 포지션이 모두 사라졌을 경우 거래 종료 처리
-    if (!hedgeTrade.sideOpened.long && !hedgeTrade.sideOpened.short) {
+    if (!hedgeTrade.sideOpened.long && !!hedgeTrade.sideOpened.short === false) {
       console.log("🎯 [SYNC] 모든 포지션 종료됨. 거래를 클리어합니다.");
       hedgeTrade = null;
       saveAppState();
@@ -370,7 +372,7 @@ async function monitorLoop() {
           openSides.push(`Long:${exitResult.longNetUSDT.toFixed(2)}`);
         if (appState.hedgeTrade.shortAmount > 0)
           openSides.push(`Short:${exitResult.shortNetUSDT.toFixed(2)}`);
-
+        console.log(appState.hedgeTrade.winnerClosed);
         console.log(
           `🧪 [MONITOR] ${openSides.join(" | ")} | RSI: ${indicators.rsi.toFixed(1)} | P: ${appState.profitMode}%    `,
         );
@@ -391,10 +393,18 @@ async function monitorLoop() {
 
     // 1. 마진 모드 및 레버리지 설정 (에러 무시)
     try {
-      await okxHedge.setMarginMode("isolated", symbol, { posSide: "long" }).catch(() => {});
-      await okxHedge.setMarginMode("isolated", symbol, { posSide: "short" }).catch(() => {});
-      await okxHedge.setLeverage(10, symbol, { posSide: "long" }).catch(() => {});
-      await okxHedge.setLeverage(10, symbol, { posSide: "short" }).catch(() => {});
+      await okxHedge
+        .setMarginMode("isolated", symbol, { posSide: "long" })
+        .catch(() => {});
+      await okxHedge
+        .setMarginMode("isolated", symbol, { posSide: "short" })
+        .catch(() => {});
+      await okxHedge
+        .setLeverage(10, symbol, { posSide: "long" })
+        .catch(() => {});
+      await okxHedge
+        .setLeverage(10, symbol, { posSide: "short" })
+        .catch(() => {});
       console.log(`✅ [SETTING] 마진(Isolated) 및 레버리지(10x) 설정 완료`);
     } catch (e) {}
 
@@ -419,31 +429,45 @@ async function monitorLoop() {
     try {
       const ticker = await okxHedge.fetchTicker(symbol);
       if (ticker && ticker.last) livePrice = ticker.last;
-    } catch (err) { }
+    } catch (err) {}
 
     const SL_RATE = p.hedgeLiquidationSL || 0.08;
     const longSL = okxHedge.priceToPrecision(symbol, livePrice * (1 - SL_RATE));
-    const shortSL = okxHedge.priceToPrecision(symbol, livePrice * (1 + SL_RATE));
+    const shortSL = okxHedge.priceToPrecision(
+      symbol,
+      livePrice * (1 + SL_RATE),
+    );
 
     let longOrder = null;
     let shortOrder = null;
-    
+
     // 순차 진입 (에러 발생 시 어떤 포지션인지 정확히 트래킹)
     try {
       // 1. OPEN LONG
-      longOrder = await okxHedge.createOrder(symbol, "market", "buy", amount, undefined, {
-        posSide: "long",
-        marginMode: "isolated"
-      });
-      
-      // 2. SET LONG SL (독립된 조건부 주문으로 발송하여 51278 에러 우회)
-      if (longOrder) {
-        await okxHedge.createOrder(symbol, "market", "sell", amount, undefined, {
+      longOrder = await okxHedge.createOrder(
+        symbol,
+        "market",
+        "buy",
+        amount,
+        undefined,
+        {
           posSide: "long",
           marginMode: "isolated",
-          reduceOnly: true,
-          stopLossPrice: Number(longSL)
-        }).catch(err => console.error("⚠️ [LONG SL 세팅 실패]:", err.message));
+        },
+      );
+
+      // 2. SET LONG SL (독립된 조건부 주문으로 발송하여 51278 에러 우회)
+      if (longOrder) {
+        await okxHedge
+          .createOrder(symbol, "market", "sell", amount, undefined, {
+            posSide: "long",
+            marginMode: "isolated",
+            reduceOnly: true,
+            stopLossPrice: Number(longSL),
+          })
+          .catch((err) =>
+            console.error("⚠️ [LONG SL 세팅 실패]:", err.message),
+          );
       }
     } catch (err) {
       console.error("⚠️ [LONG 진입 실패]:", err.message);
@@ -451,19 +475,30 @@ async function monitorLoop() {
 
     try {
       // 1. OPEN SHORT
-      shortOrder = await okxHedge.createOrder(symbol, "market", "sell", amount, undefined, {
-        posSide: "short",
-        marginMode: "isolated"
-      });
+      shortOrder = await okxHedge.createOrder(
+        symbol,
+        "market",
+        "sell",
+        amount,
+        undefined,
+        {
+          posSide: "short",
+          marginMode: "isolated",
+        },
+      );
 
       // 2. SET SHORT SL (독립된 조건부 주문으로 발송하여 51280 에러 우회)
       if (shortOrder) {
-        await okxHedge.createOrder(symbol, "market", "buy", amount, undefined, {
-          posSide: "short",
-          marginMode: "isolated",
-          reduceOnly: true,
-          stopLossPrice: Number(shortSL)
-        }).catch(err => console.error("⚠️ [SHORT SL 세팅 실패]:", err.message));
+        await okxHedge
+          .createOrder(symbol, "market", "buy", amount, undefined, {
+            posSide: "short",
+            marginMode: "isolated",
+            reduceOnly: true,
+            stopLossPrice: Number(shortSL),
+          })
+          .catch((err) =>
+            console.error("⚠️ [SHORT SL 세팅 실패]:", err.message),
+          );
       }
     } catch (err) {
       console.error("⚠️ [SHORT 진입 실패]:", err.message);
