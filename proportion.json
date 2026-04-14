@@ -1,5 +1,5 @@
 {
-  "powerOn": false,
+  "powerOn": true,
   "profitMode": 30,
   "bots": {
     "hybrid_5m": {

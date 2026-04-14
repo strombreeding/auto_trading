@@ -138,5 +138,110 @@
     "durationMinutes": 403.61441666666667,
     "reason": "💰 [Quick Exit] 2% 이상 수익 중 RSI(43.38) 저항 또는 15분 경과로 탈출.",
     "totalPnlUSDT": 0.4682315740865981
+  },
+  {
+    "time": "4/5/2026, 11:00:05 AM",
+    "mode": "HEDGE_LIVE",
+    "durationMinutes": 3584.8305833333334,
+    "reason": "🔄 지표 회복 및 본절 탈출",
+    "totalPnlUSDT": 0.4304399999999933
+  },
+  {
+    "time": "4/5/2026, 7:36:58 PM",
+    "mode": "HEDGE_LIVE",
+    "durationMinutes": 516.7925833333334,
+    "reason": "⏱️ 45분 경과 & 수익 2% 탈출",
+    "totalPnlUSDT": 0.5333292400000051
+  },
+  {
+    "time": "4/5/2026, 11:30:07 PM",
+    "mode": "HEDGE_LIVE",
+    "durationMinutes": 233.07423333333332,
+    "reason": "⏱️ 45분 경과 & 수익 2% 탈출",
+    "totalPnlUSDT": 0.6107720640000187
+  },
+  {
+    "time": "4/6/2026, 3:21:06 PM",
+    "mode": "HEDGE_LIVE",
+    "durationMinutes": 950.8994833333334,
+    "reason": "⏱️ 45분 경과 & 수익 2% 탈출",
+    "totalPnlUSDT": 0.5040935999999996
+  },
+  {
+    "time": "4/7/2026, 6:09:20 PM",
+    "mode": "HEDGE_LIVE",
+    "durationMinutes": 1608.15005,
+    "reason": "⏱️ 45분 경과 & 수익 2% 탈출",
+    "totalPnlUSDT": 0.6094026119999922
+  },
+  {
+    "time": "4/8/2026, 2:23:48 AM",
+    "mode": "HEDGE_LIVE",
+    "durationMinutes": 494.37398333333334,
+    "reason": "⏱️ 45분 경과 & 수익 2% 탈출",
+    "totalPnlUSDT": 0.5063452799999992
+  },
+  {
+    "time": "4/9/2026, 1:57:13 AM",
+    "mode": "HEDGE_LIVE",
+    "durationMinutes": 333.24171666666666,
+    "reason": "⏱️ 45분 경과 & 수익 2% 탈출",
+    "totalPnlUSDT": 0.38027223600000903
+  },
+  {
+    "time": "4/9/2026, 11:30:07 AM",
+    "mode": "HEDGE_LIVE",
+    "durationMinutes": 572.81905,
+    "reason": "⏱️ 45분 경과 & 수익 2% 탈출",
+    "totalPnlUSDT": 0.384429248000002
+  },
+  {
+    "time": "4/10/2026, 8:33:31 AM",
+    "mode": "HEDGE_LIVE",
+    "durationMinutes": 1263.3049166666667,
+    "reason": "⏱️ 45분 경과 & 수익 2% 탈출",
+    "totalPnlUSDT": 0.38413358000000697
+  },
+  {
+    "time": "4/11/2026, 10:30:05 AM",
+    "mode": "HEDGE_LIVE",
+    "durationMinutes": 1556.4784333333334,
+    "reason": "🔄 지표 회복 및 본절 탈출",
+    "totalPnlUSDT": -0.520473384000015
+  },
+  {
+    "time": "4/11/2026, 6:16:25 PM",
+    "mode": "HEDGE_LIVE",
+    "durationMinutes": 466.24905,
+    "reason": "⏱️ 45분 경과 & 수익 2% 탈출",
+    "totalPnlUSDT": 0.4135571400000091
+  },
+  {
+    "time": "4/12/2026, 8:10:06 AM",
+    "mode": "HEDGE_LIVE",
+    "durationMinutes": 833.6080333333333,
+    "reason": "⏱️ 45분 경과 & 수익 2% 탈출",
+    "totalPnlUSDT": 0.41359488000001066
+  },
+  {
+    "time": "4/13/2026, 5:43:49 AM",
+    "mode": "HEDGE_LIVE",
+    "durationMinutes": 1293.6277333333333,
+    "reason": "⏱️ 45분 경과 & 수익 2% 탈출",
+    "totalPnlUSDT": 0.38365241600000366
+  },
+  {
+    "time": "4/13/2026, 11:23:32 PM",
+    "mode": "HEDGE_LIVE",
+    "durationMinutes": 1059.6267166666667,
+    "reason": "🔄 지표 회복 및 본절 탈출",
+    "totalPnlUSDT": 0.32624257999999795
+  },
+  {
+    "time": "4/14/2026, 12:26:40 AM",
+    "mode": "HEDGE_LIVE",
+    "durationMinutes": 63.03908333333333,
+    "reason": "🔄 지표 회복 및 본절 탈출",
+    "totalPnlUSDT": 0.3638636959999904
   }
 ]
